@@ -44,10 +44,9 @@ function s:ShowBuffers(bufs, customcount)
         echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
         echohl NonText
 
+        let l:path = fnamemodify(b, g:quickbuf_showbuffs_pathmod)
         if g:quickbuf_showbuffs_shortenpath
-            let l:path = pathshorten(fnamemodify(b, g:quickbuf_showbuffs_pathmod))
-        else
-            let l:path = fnamemodify(b, g:quickbuf_showbuffs_pathmod)
+            let l:path = pathshorten(l:path)
         endif
         echon " : " . l:path . "\n"
 
@@ -75,8 +74,18 @@ function s:RunPrompt(arg)
 
     if !empty(l:arg)
         let l:bufs = s:GetMatchingBuffers(l:arg, 9)
+
+        " remove current file from buf list
+        let l:curr = index(l:bufs, expand("%:p"))
+        if l:curr >= 0
+            call remove(l:bufs, l:curr)
+        endif
+
+        " if single file in buf list, auto switch to it
         if len(l:bufs) == 1
             let l:goto = l:bufs[0]
+
+        " show buf list / selection prompt
         elseif len(l:bufs) > 1
             call s:ShowBuffers(l:bufs, 1)
             try
