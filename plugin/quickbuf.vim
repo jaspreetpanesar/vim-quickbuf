@@ -13,26 +13,20 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-
 " TODO
-" User Customisation:
-"   1. buffer list colours (number, file, path),
-"   2. buffer list format (file, path),
-"   3. prompt (custom string, or function), 
-" Functions:
-"   1. show buffers
-"   2. change buffer
-"   3. get matching buffers
+" add prompt customisation through function
+" update prompt function to not use recursive calls
+" add comments
 
 let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 5)
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
+let g:quickbuf_prompt_string = get(g:, "quickbuf_prompt_string", " ~> ")
 
 function s:ShowBuffers(bufs, customcount)
     if empty(a:bufs)
         return
     endif
-    let l:spacing = 5
     let l:count = 1
     echo "\n"
     for b in a:bufs
@@ -41,13 +35,13 @@ function s:ShowBuffers(bufs, customcount)
         else
             let l:num = bufnr(b)
         endif
-        echon repeat(" ", l:spacing-len(string(l:num)))
+        echon repeat(" ", g:quickbuf_showbuffs_num_spacing-len(string(l:num)))
         echohl Number
         echon l:num
         echohl String
-        echon "  " . fnamemodify(b, ":t")
+        echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
         echohl NonText
-        echon " : " . fnamemodify(b, ":~:.:h") . "\n"
+        echon " : " . fnamemodify(b, g:quickbuf_showbuffs_pathmod) . "\n"
         echohl None
         let l:count += 1
     endfor
@@ -94,7 +88,7 @@ function s:RunPrompt(arg)
 
     " seperate check to allow arg appending after no index selection
     if empty(l:goto)
-        let l:goto = input(" ~> ", l:arg, "buffer")
+        let l:goto = input(g:quickbuf_prompt_string, l:arg, "buffer")
         if empty(l:goto)
             return
         endif
@@ -114,7 +108,7 @@ function s:RunPrompt(arg)
     endtry
 endfunction
 
-command! QBPrompt call s:RunPrompt("")
+command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ShowBuffers(getcompletion(<q-args>, "buffer"), 0)
 
 
