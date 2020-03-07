@@ -23,6 +23,7 @@ let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing",
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
+let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 
 function s:ShowBuffers(bufs, customcount)
     if empty(a:bufs)
@@ -42,7 +43,14 @@ function s:ShowBuffers(bufs, customcount)
         echohl String
         echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
         echohl NonText
-        echon " : " . pathshorten(fnamemodify(b, g:quickbuf_showbuffs_pathmod)) . "\n"
+
+        if g:quickbuf_showbuffs_shortenpath
+            let l:path = pathshorten(fnamemodify(b, g:quickbuf_showbuffs_pathmod))
+        else
+            let l:path = fnamemodify(b, g:quickbuf_showbuffs_pathmod)
+        endif
+        echon " : " . l:path . "\n"
+
         echohl None
         let l:count += 1
     endfor
