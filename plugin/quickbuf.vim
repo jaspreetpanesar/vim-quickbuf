@@ -29,36 +29,27 @@ let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 
 function s:ShowBuffers(bufs, customcount)
-    " error catching
     if empty(a:bufs)
         return
     endif
-
-    " show buffers
+    let l:spacing = 5
     let l:count = 1
     echo "\n"
     for b in a:bufs
-        try
-            if (a:customcount) 
-                let l:n = l:count
-            else
-                let l:n = bufnr(b)
-
-            " to align numbers
-            echon repeat(" ", g:quickbuf_showbuffs_num_spacing-len(string(l:n)))
-
-            echohl Number
-            echon l:n
-            echohl String
-            echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
-            echohl NonText
-            echon " : " . fnamemodify(b, g:quickbuf_showbuffs_pathmod) . "\n"
-            echohl None
-
-           let l:count += 1 
-        catch
-            echoerr "an error occured"
-        endtry
+        if a:customcount
+            let l:num = l:count
+        else
+            let l:num = bufnr(b)
+        endif
+        echon repeat(" ", l:spacing-len(string(l:num)))
+        echohl Number
+        echon l:num
+        echohl String
+        echon "  " . fnamemodify(b, ":t")
+        echohl NonText
+        echon " : " . fnamemodify(b, ":~:.:h") . "\n"
+        echohl None
+        let l:count += 1
     endfor
 endfunction
 
