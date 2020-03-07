@@ -17,11 +17,12 @@ let g:loaded_quickbuf = 1
 " add prompt customisation through function
 " update prompt function to not use recursive calls
 " add comments
+" implement pathshorten() for show buffers
 
 let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 5)
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
-let g:quickbuf_prompt_string = get(g:, "quickbuf_prompt_string", " ~> ")
+let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 
 function s:ShowBuffers(bufs, customcount)
     if empty(a:bufs)
@@ -41,7 +42,7 @@ function s:ShowBuffers(bufs, customcount)
         echohl String
         echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
         echohl NonText
-        echon " : " . fnamemodify(b, g:quickbuf_showbuffs_pathmod) . "\n"
+        echon " : " . pathshorten(fnamemodify(b, g:quickbuf_showbuffs_pathmod)) . "\n"
         echohl None
         let l:count += 1
     endfor
