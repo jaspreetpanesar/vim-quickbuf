@@ -1,12 +1,10 @@
-
-" quickbuf.vim
-" Author: Jaspreet Panesar <jaspreetpanesar>
-" Version: 0.0.0
+"
+" *QuickBuf* Creates a prompt to allow for quick
+"   \ and non-intrusive buffer switching
+" Author:      Jaspreet Panesar <jaspreetpanesar>
+" Version:     1.0
 " Last Change: 2020 Mar 07
-" Licence: This file is placed in the public domain.
-
-" Credits:
-" <stackoverflow links>
+" Licence:     This file is placed in the public domain.
 
 if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
     finish
