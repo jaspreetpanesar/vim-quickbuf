@@ -11,11 +11,6 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-" TODO
-" add prompt customisation through function
-" update prompt function to not use recursive calls
-" add comments
-" implement pathshorten() for show buffers
 
 let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 5)
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
