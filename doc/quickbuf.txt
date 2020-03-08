@@ -1,0 +1,35 @@
+quickbuf.txt 
+
+                                 QuickBuf
+
+==============================================================================
+TABLE OF CONTENTS                                                *quickbuf* {{{1
+
+    1. Overview ................................. |quickbuf-overview|
+    2. Commands ................................. |quickbuf-commands|
+    3. Options .................................. |quickbuf-options|
+    4. Credits .................................. |quickbuf-licence|
+
+==============================================================================
+1. Overview                                             *quickbuf-overview* {{{1
+
+Quick and easy buffer switching
+
+==============================================================================
+2. Commands                                             *quickbuf-commands* {{{1
+
+text
+
+==============================================================================
+3. Options                                               *quickbuf-options* {{{1
+
+text
+
+==============================================================================
+3. Credits                                               *quickbuf-credits* {{{1
+
+Author: Jaspreet Panesar (jaspreetpanesar)
+Git repository: https://github.com/jaspreetpanesar/vim-quickbuf
+
+
+vim:tw=78:ts=8:ft=help:norl:fdm=marker
