@@ -8,7 +8,7 @@ TABLE OF CONTENTS                                                *quickbuf* {{{1
     1. Overview ................................. |quickbuf-overview|
     2. Commands ................................. |quickbuf-commands|
     3. Options .................................. |quickbuf-options|
-    4. Credits .................................. |quickbuf-licence|
+    4. Credits .................................. |quickbuf-credits|
 
 ==============================================================================
 1. Overview                                             *quickbuf-overview* {{{1
