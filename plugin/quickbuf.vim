@@ -18,6 +18,7 @@ let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~
 let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 let g:quickbuf_prompt_version        = get(g:, "quickbuf_prompt_version", 2)
+let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 
 function s:ShowBuffers(bufs, customcount)
     " customcount used to specify whether to use bufnum or counter
@@ -214,7 +215,22 @@ function s:RunPrompt_v2(args)
 endfunction
 
 function s:ChangeBuffer(expr)
-    execute 'buffer ' . a:expr
+    " TODO currently cannot check if window
+    " open in another tab
+    if g:quickbuf_switch_to_window == 1
+        echo bufnr(a:expr)
+        echo winbufnr(bufnr(a:expr))
+        if winbufnr(bufnr(a:expr)) > -1
+            let l:save = &switchbuf
+            set switchbuf=useopen,usetab
+            set switchbuf-=split
+            execute 'sbuffer ' . a:expr
+            let &switchbuf = l:save
+            return
+        endif
+    else
+        execute 'buffer ' . a:expr
+    endif
 endfunction
 
 function s:RunPrompt(args)
