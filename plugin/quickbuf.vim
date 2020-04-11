@@ -241,6 +241,6 @@ function s:ChangeBuffer(expr)
 endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
-command! -nargs=? QBList call s:ShowBuffers(getcompletion(<q-args>, "buffer"), 0)
+command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(<q-args>, 999, 1), 0)
 
 
