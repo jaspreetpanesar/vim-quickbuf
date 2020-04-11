@@ -28,7 +28,7 @@ function s:BufferPreview(buf, trunc)
     let l:line = 1
     while 1
         " to stop possible infinite loop
-        if l:line > 50
+        if l:line > 10
             return ''
         endif
         try
@@ -54,7 +54,8 @@ function s:BufferPreview(buf, trunc)
 endfunction
 
 function s:ShowBuffers(bufs, customcount)
-    " customcount used to specify whether to use bufnum or counter
+    " customcount : set to 1 to use counter,
+    " or 0 to use bufnums
     if empty(a:bufs)
         return
     endif
@@ -96,16 +97,28 @@ function s:ShowBuffers(bufs, customcount)
     endfor
 endfunction
 
-function s:GetMatchingBuffers(expr, limit)
+function s:GetMatchingBuffers(expr, limit, allowempty)
+    " allowempty - allow using empty expr to
+    " get all listed buffers
+    let l:expr = substitute(a:expr, '^!', '', '')
     let l:bufs = []
     let l:count = 1
-    for b in getcompletion(a:expr, "buffer")
-        if l:count > a:limit
-            break
-        endif
-        call add(l:bufs, bufnr(b))
-        let l:count += 1
-    endfor
+    if !empty(l:expr) || a:allowempty
+        for b in getcompletion(l:expr, "buffer")
+            if l:count > a:limit
+                break
+            endif
+            call add(l:bufs, bufnr(b))
+            let l:count += 1
+        endfor
+    endif
+
+    if (a:expr =~ '^!') && (l:count <= a:limit)
+        for b in s:GetEmptyBuffers(a:limit-l:count)
+            call add(l:bufs, bufnr(b))
+        endfor
+    endif
+
     return l:bufs
 endfunction
 
@@ -155,12 +168,7 @@ function s:RunPrompt(args)
             return
         endif
 
-        let l:buflist = []
-        if l:goto =~ "^!"
-            let l:buflist = s:GetEmptyBuffers(9)
-        else
-            let l:buflist = s:GetMatchingBuffers(l:goto, 9)
-        endif
+        let l:buflist = s:GetMatchingBuffers(l:goto, 9, 0)
 
         " remove current file
         let l:curf = index(l:buflist, bufnr('%'))
