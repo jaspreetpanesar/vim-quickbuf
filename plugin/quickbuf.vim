@@ -19,12 +19,38 @@ let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 
-function s:ExpandBufName(bufs)
-    let l:new = []
-    for b in a:bufs
-        call add(l:new, bufname(b))
-    endfor
-    return l:new
+function s:StripWhitespace(line)
+    " https://stackoverflow.com/a/4479072
+    return substitute(a:line, '^\s*\(.\{-}\)\s*$', '\1', '')
+endfunction
+
+function s:BufferPreview(buf, trunc)
+    let l:line = 1
+    while 1
+        " to stop possible infinite loop
+        if l:line > 50
+            return ''
+        endif
+        try
+            let l:str = getbufline(a:buf, l:line)[0]
+        catch /E684/
+            return ''
+        endtry
+        if !empty(s:StripWhitespace(l:str))
+            break
+        endif
+        let l:line += 1
+    endwhile
+
+    if a:trunc-1 > 0
+        if len(l:str) > a:trunc
+            return l:str[:a:trunc-1] . '...'
+        else
+            return l:str[:a:trunc-1]
+        endif
+    else
+        return l:str
+    endif
 endfunction
 
 function s:ShowBuffers(bufs, customcount)
@@ -38,20 +64,32 @@ function s:ShowBuffers(bufs, customcount)
         if a:customcount
             let l:num = l:count
         else
-            let l:num = bufnr(b)
+            let l:num = b
         endif
         echon repeat(" ", g:quickbuf_showbuffs_num_spacing-len(string(l:num)))
         echohl Number
         echon l:num
         echohl String
-        echon "  " . fnamemodify(b, g:quickbuf_showbuffs_filemod)
+        let l:buf = bufname(b)
+        echon "  "
+        if empty(l:buf)
+            echon '#' . b
+        else
+            echon fnamemodify(l:buf, g:quickbuf_showbuffs_filemod)
+        endif
         echohl NonText
 
-        let l:path = fnamemodify(b, g:quickbuf_showbuffs_pathmod)
-        if g:quickbuf_showbuffs_shortenpath
-            let l:path = pathshorten(l:path)
+        echon " : "
+        if empty(l:buf)
+            let l:path = s:BufferPreview(b, 20)
+        else
+            let l:path = fnamemodify(l:buf, g:quickbuf_showbuffs_pathmod)
+            if g:quickbuf_showbuffs_shortenpath
+                let l:path = pathshorten(l:path)
+            endif
         endif
-        echon " : " . l:path . "\n"
+
+        echon l:path . "\n"
 
         echohl None
         let l:count += 1
@@ -67,6 +105,20 @@ function s:GetMatchingBuffers(expr, limit)
         endif
         call add(l:bufs, bufnr(b))
         let l:count += 1
+    endfor
+    return l:bufs
+endfunction
+
+function s:GetEmptyBuffers(limit)
+    let l:bufs = []
+    let l:count = 1
+    for b in getbufinfo({'buflisted':1})
+        if l:count > a:limit
+            break
+        endif
+        if empty(b.name)
+            call add(l:bufs, b.bufnr)
+        endif
     endfor
     return l:bufs
 endfunction
@@ -104,8 +156,8 @@ function s:RunPrompt(args)
         endif
 
         let l:buflist = []
-        " TODO allow reading noname buffers
-        if 0
+        if l:goto =~ "^!"
+            let l:buflist = s:GetEmptyBuffers(9)
         else
             let l:buflist = s:GetMatchingBuffers(l:goto, 9)
         endif
@@ -136,7 +188,7 @@ function s:RunPrompt(args)
             continue
         " select from buflist when multiple buffers
         elseif len(l:buflist) > 1
-            call s:ShowBuffers(s:ExpandBufName(l:buflist), 1)
+            call s:ShowBuffers(l:buflist, 1)
 
             " buffer selection
             try
