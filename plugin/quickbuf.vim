@@ -17,7 +17,6 @@ let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
-let g:quickbuf_prompt_version        = get(g:, "quickbuf_prompt_version", 2)
 let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 
 function s:ShowBuffers(bufs, customcount)
@@ -64,64 +63,6 @@ function s:GetMatchingBuffers(expr, limit)
     return l:bufs
 endfunction
 
-function s:RunPrompt_v1(arg)
-    let l:goto = ""
-    let l:arg = a:arg
-
-    if !empty(l:arg)
-        let l:bufs = s:GetMatchingBuffers(l:arg, 9)
-
-        " remove current file from buf list
-        let l:curr = index(l:bufs, expand("%:p"))
-        if l:curr >= 0
-            call remove(l:bufs, l:curr)
-        endif
-
-        " if single file in buf list, auto switch to it
-        if len(l:bufs) == 1
-            let l:goto = l:bufs[0]
-
-        " show buf list / selection prompt
-        elseif len(l:bufs) > 1
-            call s:ShowBuffers(l:bufs, 1)
-            try
-                let l:sel = nr2char(getchar())
-                redraw " to fix 'press enter...' msg appearing bug :/
-                if empty(matchstr(l:sel, "[A-z0-9]"))
-                    return
-                endif
-                if !empty(matchstr(l:sel, "[A-z0]"))
-                    throw 'append'
-                endif
-                let l:goto = l:bufs[l:sel-1]
-            catch /append\|E684/
-                let l:arg = l:sel
-            endtry
-        endif
-    endif
-
-    " seperate check to allow arg appending after no index selection
-    if empty(l:goto)
-        let l:goto = input(g:quickbuf_prompt_string, l:arg, "buffer")
-        if empty(l:goto)
-            return
-        endif
-    endif
-
-    try
-        execute 'buffer ' . l:goto
-    " multiple matches
-    catch /E93/
-        call s:RunPrompt(l:goto)
-    " no matches
-    catch /E94/
-        echohl ErrorMsg
-        echon "\nno matches found"
-        echohl None
-        call s:RunPrompt("")
-    endtry
-endfunction
-
 function s:GetListSelection(bufs)
     call s:ShowBuffers(a:bufs, 1)
     try
@@ -145,7 +86,7 @@ function s:ShowError(msg)
     echohl None
 endfunction
 
-function s:RunPrompt_v2(args)
+function s:RunPrompt(args)
     let l:pf = ''
     while 1
         let l:goto = input(g:quickbuf_prompt_string, l:pf, "buffer")
@@ -230,15 +171,6 @@ function s:ChangeBuffer(expr)
         execute 'buffer ' . a:expr
     endif
 endfunction
-
-function s:RunPrompt(args)
-    if g:quickbuf_prompt_version == 1
-        call s:RunPrompt_v1(a:args)
-    else
-        call s:RunPrompt_v2(a:args)
-    endif
-endfunction
-
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ShowBuffers(getcompletion(<q-args>, "buffer"), 0)
