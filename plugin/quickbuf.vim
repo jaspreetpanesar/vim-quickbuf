@@ -158,7 +158,7 @@ function s:RunPrompt_v2(args)
         if 0
         else
             let l:buflist = s:GetMatchingBuffers(l:goto, 9)
-        endtry
+        endif
 
         " remove current file
         let l:curf = index(l:buflist, expand("%:p"))
