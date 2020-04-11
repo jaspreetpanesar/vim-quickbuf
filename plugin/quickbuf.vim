@@ -218,8 +218,6 @@ function s:ChangeBuffer(expr)
     " TODO currently cannot check if window
     " open in another tab
     if g:quickbuf_switch_to_window == 1
-        echo bufnr(a:expr)
-        echo winbufnr(bufnr(a:expr))
         if winbufnr(bufnr(a:expr)) > -1
             let l:save = &switchbuf
             set switchbuf=useopen,usetab
