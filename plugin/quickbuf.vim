@@ -19,6 +19,14 @@ let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 
+function s:ExpandBufName(bufs)
+    let l:new = []
+    for b in a:bufs
+        call add(l:new, bufname(b))
+    endfor
+    return l:new
+endfunction
+
 function s:ShowBuffers(bufs, customcount)
     " customcount used to specify whether to use bufnum or counter
     if empty(a:bufs)
@@ -57,7 +65,7 @@ function s:GetMatchingBuffers(expr, limit)
         if l:count > a:limit
             break
         endif
-        call add(l:bufs, fnamemodify(b, ":p"))
+        call add(l:bufs, bufnr(b))
         let l:count += 1
     endfor
     return l:bufs
@@ -103,7 +111,7 @@ function s:RunPrompt(args)
         endif
 
         " remove current file
-        let l:curf = index(l:buflist, expand("%:p"))
+        let l:curf = index(l:buflist, bufnr('%'))
         if l:curf >= 0
             call remove(l:buflist, l:curf)
         endif
@@ -128,7 +136,7 @@ function s:RunPrompt(args)
             continue
         " select from buflist when multiple buffers
         elseif len(l:buflist) > 1
-            call s:ShowBuffers(l:buflist, 1)
+            call s:ShowBuffers(s:ExpandBufName(l:buflist), 1)
 
             " buffer selection
             try
