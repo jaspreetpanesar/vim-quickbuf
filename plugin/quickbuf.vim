@@ -178,11 +178,10 @@ function s:RunPrompt_v2(args)
             try
                 call s:ChangeBuffer( l:goto )
                 return
-            catch /E94/
-                " no matches
+            catch /E94\|E86/
             endtry
 
-            let l:pf = l:goto
+            " let l:pf = l:goto
             call s:ShowError("\nno matches found")
             continue
         " select from buflist when multiple buffers
