@@ -17,8 +17,10 @@ let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
+let g:quickbuf_prompt_version        = get(g:, "quickbuf_prompt_version", 2)
 
 function s:ShowBuffers(bufs, customcount)
+    " customcount used to specify whether to use bufnum or counter
     if empty(a:bufs)
         return
     endif
@@ -61,7 +63,7 @@ function s:GetMatchingBuffers(expr, limit)
     return l:bufs
 endfunction
 
-function s:RunPrompt(arg)
+function s:RunPrompt_v1(arg)
     let l:goto = ""
     let l:arg = a:arg
 
@@ -118,6 +120,112 @@ function s:RunPrompt(arg)
         call s:RunPrompt("")
     endtry
 endfunction
+
+function s:GetListSelection(bufs)
+    call s:ShowBuffers(a:bufs, 1)
+    try
+        let l:sel = nr2char(getchar())
+        redraw " to fix 'press enter...' msg appearing bug :/
+        if empty(matchstr(l:sel, "[A-z0-9]"))
+            return
+        endif
+        if !empty(matchstr(l:sel, "[A-z0]"))
+            throw 'append'
+        endif
+        let l:goto = l:bufs[l:sel-1]
+    catch /append\|E684/
+        let l:arg = l:sel
+    endtry
+endfunction
+
+function s:ShowError(msg)
+    echohl ErrorMsg
+    echon a:msg
+    echohl None
+endfunction
+
+function s:RunPrompt_v2(args)
+    let l:pf = ''
+    while 1
+        let l:goto = input(g:quickbuf_prompt_string, l:pf, "buffer")
+
+        if empty(l:goto) 
+            return
+        endif
+
+        let l:buflist = []
+        " TODO allow reading noname buffers
+        if 0
+        else
+            let l:buflist = s:GetMatchingBuffers(l:goto, 9)
+        endtry
+
+        " remove current file
+        let l:curf = index(l:buflist, expand("%:p"))
+        if l:curf >= 0
+            call remove(l:buflist, l:curf)
+        endif
+
+        " restart when no buffers found
+        if len(l:buflist) == 0
+            " do not show error when current file was removed above
+            if l:curf >= 0
+                return
+            endif
+
+            " special case: when whole file name input
+            " and no buffer match was found, try changing anyway
+            try
+                call s:ChangeBuffer( l:goto )
+                return
+            catch /E94/
+                " no matches
+            endtry
+
+            let l:pf = l:goto
+            call s:ShowError("\nno matches found")
+            continue
+        " select from buflist when multiple buffers
+        elseif len(l:buflist) > 1
+            call s:ShowBuffers(l:buflist, 1)
+
+            " buffer selection
+            try
+                let l:sel = nr2char(getchar())
+                redraw " to fix 'press enter...' msg appearing bug :/
+                if empty(matchstr(l:sel, "[A-z0-9]"))
+                    return
+                endif
+                if !empty(matchstr(l:sel, "[A-z0]"))
+                    throw 'append'
+                endif
+                let l:buflist = [ l:buflist[l:sel-1] ] " index error
+            catch /append\|E684/
+                " start new prompt with whatever key was pressed
+                let l:pf = l:sel
+                continue
+            endtry
+
+        endif
+
+        call s:ChangeBuffer( l:buflist[0] )
+        return
+    endwhile
+
+endfunction
+
+function s:ChangeBuffer(expr)
+    execute 'buffer ' . a:expr
+endfunction
+
+function s:RunPrompt(args)
+    if g:quickbuf_prompt_version == 1
+        call s:RunPrompt_v1(a:args)
+    else
+        call s:RunPrompt_v2(a:args)
+    endif
+endfunction
+
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ShowBuffers(getcompletion(<q-args>, "buffer"), 0)
