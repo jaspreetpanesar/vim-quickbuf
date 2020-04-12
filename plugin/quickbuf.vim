@@ -11,13 +11,16 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-
 let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 5)
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
+let g:quickbuf_showbuffs_noname_str  = get(g:, "quickbuf_showbuffs_noname_str", "#")
 let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
 let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
+let g:quickbuf_line_preview_limit    = get(g:, "quickbuf_line_preview_limit", 10)
+let g:quickbuf_line_preview_truncate = get(g:, "quickbuf_line_preview_truncate", 20)
+let g:quickbuf_include_noname_regex  = get(g:, "quickbuf_include_noname_regex", "^!")
 
 function s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
@@ -28,7 +31,7 @@ function s:BufferPreview(buf, trunc)
     let l:line = 1
     while 1
         " to stop possible infinite loop
-        if l:line > 10
+        if l:line > g:quickbuf_line_preview_limit
             return ''
         endif
         try
@@ -74,7 +77,7 @@ function s:ShowBuffers(bufs, customcount)
         let l:buf = bufname(b)
         echon "  "
         if empty(l:buf)
-            echon '#' . b
+            echon g:quickbuf_showbuffs_noname_str . b
         else
             echon fnamemodify(l:buf, g:quickbuf_showbuffs_filemod)
         endif
@@ -82,7 +85,7 @@ function s:ShowBuffers(bufs, customcount)
 
         echon " : "
         if empty(l:buf)
-            let l:path = s:BufferPreview(b, 20)
+            let l:path = s:BufferPreview(b, g:quickbuf_line_preview_truncate)
         else
             let l:path = fnamemodify(l:buf, g:quickbuf_showbuffs_pathmod)
             if g:quickbuf_showbuffs_shortenpath
@@ -100,7 +103,7 @@ endfunction
 function s:GetMatchingBuffers(expr, limit, allowempty)
     " allowempty - allow using empty expr to
     " get all listed buffers
-    let l:expr = substitute(a:expr, '^!', '', '')
+    let l:expr = substitute(a:expr, g:quickbuf_include_noname_regex, '', '')
     let l:bufs = []
     let l:count = 1
     if !empty(l:expr) || a:allowempty
@@ -113,7 +116,7 @@ function s:GetMatchingBuffers(expr, limit, allowempty)
         endfor
     endif
 
-    if (a:expr =~ '^!') && (l:count <= a:limit)
+    if (a:expr =~ g:quickbuf_include_noname_regex) && (l:count <= a:limit)
         for b in s:GetEmptyBuffers(a:limit-l:count)
             call add(l:bufs, bufnr(b))
         endfor
