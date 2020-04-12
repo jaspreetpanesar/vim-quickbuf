@@ -2,7 +2,7 @@
 " *QuickBuf* Creates a prompt to allow for quick
 "   \ and non-intrusive buffer switching
 " Author:      Jaspreet Panesar <jaspreetpanesar>
-" Version:     1.0
+" Version:     2.0
 " Last Change: 2020 Mar 07
 " Licence:     This file is placed in the public domain.
 
