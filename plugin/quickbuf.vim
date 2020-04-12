@@ -3,7 +3,7 @@
 "   \ and non-intrusive buffer switching
 " Author:      Jaspreet Panesar <jaspreetpanesar>
 " Version:     2.0
-" Last Change: 2020 Mar 07
+" Last Change: 2020 Apr 12
 " Licence:     This file is placed in the public domain.
 
 if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
