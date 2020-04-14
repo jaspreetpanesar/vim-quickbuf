@@ -35,11 +35,11 @@ function s:BufferPreview(buf, trunc)
             return ''
         endif
         try
-            let l:str = getbufline(a:buf, l:line)[0]
+            let l:str = s:StripWhitespace(getbufline(a:buf, l:line)[0])
         catch /E684/
             return ''
         endtry
-        if !empty(s:StripWhitespace(l:str))
+        if !empty(l:str)
             break
         endif
         let l:line += 1
@@ -104,6 +104,12 @@ function s:GetMatchingBuffers(expr, limit, allowempty)
     " allowempty - allow using empty expr to
     " get all listed buffers
     let l:expr = substitute(a:expr, g:quickbuf_include_noname_regex, '', '')
+
+    " prioritise active buffer number
+    if match(l:expr, "^[0-9]*$") > -1 && l:expr > 0 && bufexists(str2nr(l:expr))
+        return [l:expr]
+    endif
+
     let l:bufs = []
     let l:count = 1
     if !empty(l:expr) || a:allowempty
@@ -116,6 +122,7 @@ function s:GetMatchingBuffers(expr, limit, allowempty)
         endfor
     endif
 
+    " include noname buffers
     if (a:expr =~ g:quickbuf_include_noname_regex) && (l:count <= a:limit)
         for b in s:GetEmptyBuffers(a:limit-l:count)
             call add(l:bufs, bufnr(b))
