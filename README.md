@@ -21,20 +21,8 @@ Map command for faster usage (my personal recommendation is double tap leader ke
 nnoremap <leader><leader> :QBPrompt<cr>
 ```
 
-## Customisation
-See `:h quickbuf` for more information
+Prepend search pattern with `!` to view/switch to no-name buffers.
 
-*Buffer prompt*
-- Static prompt string: `g:quickbuf_prompt_string`
-- Dynamic prompt string using function : `g:quickbuf_prompt_function`
-
-*File display*
-- Path display format: `g:quickbuf_showbuffs_pathmod`
-- File display format: `g:quickbuf_showbuffs_filemod`
-- Shorten file path: `g:quickbuf_showbuffs_shortenpath`
-- Buffer index alignment: `g:quickbuf_showbuffs_num_spacing`
-
-## Extra
 Display all buffers matching pattern (uses vim's own buffer completion):
 ```
 :QBList <pattern>
