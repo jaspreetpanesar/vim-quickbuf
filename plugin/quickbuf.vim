@@ -35,11 +35,11 @@ function s:BufferPreview(buf, trunc)
             return ''
         endif
         try
-            let l:str = getbufline(a:buf, l:line)[0]
+            let l:str = s:StripWhitespace(getbufline(a:buf, l:line)[0])
         catch /E684/
             return ''
         endtry
-        if !empty(s:StripWhitespace(l:str))
+        if !empty(l:str)
             break
         endif
         let l:line += 1
