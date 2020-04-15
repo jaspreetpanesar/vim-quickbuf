@@ -13,17 +13,111 @@ TABLE OF CONTENTS                                                   *quickbuf*
 ==============================================================================
 1. Overview                                                *quickbuf-overview*
 
-Quick and easy buffer switching
+TODO
 
 ==============================================================================
 2. Commands                                                *quickbuf-commands*
 
-text
+                                                 *QBPrompt* *quickbuf-searching*
+Opens interactive prompt to switch buffers. >
+    :QBPrompt
+<
+Mapping example: >
+    nnoremap <<keys>> :QBPrompt<cr>
+<
+    Can be cancelled using ESC, CTRL-C or RETURN with empty search.
+
+    If the search is a number, search string is treated as buffer number
+    and switches appropriatly. If buffer number does not exist, it
+    is treated as string match.
+
+    If search matches multiple buffers, results are displayed (max 9).
+    Keys 1-9 can be used to select results. Use ESC to cancel, or any
+    other key to restart search.
+
+    '!' (customisable using |quickbuf_include_noname_regex|) can be prepended
+    to the search string to also switch to no-name buffers. The '!' itself
+    will allow switching between no-name buffers only.
+
+    |wildmenu| and tab-complete can be used with the prompt.
+
+------------------------------------------------------------------------------
+                                                                      *QBList*
+Allows switching >
+    :QBList <!><pattern>
+<
+    View buffers matching search pattern. If no pattern is provided, all
+    named buffers are listed.
+
+    Prepend '!' to also view no-name buffers. See |quickbuf-searching|.
 
 ==============================================================================
 3. Options                                                  *quickbuf-options*
 
-text
+                                            *'quickbuf_showbuffs_num_spacing'*
+To set something: >
+    let g:quickbuf_showbuffs_num_spacing = 5
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_showbuffs_filemod'*
+Description: >
+    let g:quickbuf_showbuffs_filemod = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_showbuffs_pathmod'*
+Description: >
+    let g:quickbuf_showbuffs_pathmod = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_showbuffs_filemod'*
+Description: >
+    let g:quickbuf_showbuffs_filemod = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_showbuffs_noname_str'*
+Description: >
+    let g:quickbuf_showbuffs_noname_str = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_prompt_string'*
+Description: >
+    let g:quickbuf_prompt_string = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_showbuffs_shortenpath'*
+Description: >
+    let g:quickbuf_showbuffs_shortenpath = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_switch_to_window'*
+Description: >
+    let g:quickbuf_switch_to_window = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_line_preview_limit'*
+Description: >
+    let g:quickbuf_line_preview_limit = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_line_preview_truncate'*
+Description: >
+    let g:quickbuf_line_preview_truncate = ''
+<
+
+------------------------------------------------------------------------------
+                                                *'quickbuf_include_noname_regex'*
+Description: >
+    let g:quickbuf_include_noname_regex = ''
+<
 
 ==============================================================================
 3. Credits                                                  *quickbuf-credits*
