@@ -11,7 +11,7 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 5)
+let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 6)
 let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 let g:quickbuf_showbuffs_noname_str  = get(g:, "quickbuf_showbuffs_noname_str", "#")
@@ -70,9 +70,18 @@ function s:ShowBuffers(bufs, customcount)
         else
             let l:num = b
         endif
-        echon repeat(" ", g:quickbuf_showbuffs_num_spacing-len(string(l:num)))
+
         echohl Number
+        " highlight current buffer
+        let pre_spc = g:quickbuf_showbuffs_num_spacing-len(string(l:num))
+        if b == bufnr('%')
+            echon repeat(" ", l:pre_spc-2)
+            echon "> "
+        else
+            echon repeat(" ", l:pre_spc)
+        endif
         echon l:num
+
         echohl String
         let l:buf = bufname(b)
         echon "  "
@@ -80,6 +89,10 @@ function s:ShowBuffers(bufs, customcount)
             echon g:quickbuf_showbuffs_noname_str . b
         else
             echon fnamemodify(l:buf, g:quickbuf_showbuffs_filemod)
+        endif
+        " show if modified
+        if getbufvar(b, "&mod") == 1
+            echon "*"
         endif
         echohl NonText
 
