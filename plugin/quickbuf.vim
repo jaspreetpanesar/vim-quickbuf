@@ -261,18 +261,25 @@ function! s:RunPrompt(args)
 endfunction
 
 function! s:ChangeBuffer(expr, canswitch=0)
-    if a:canswitch && !empty(win_findbuf(bufnr(a:expr)))
+    let l:expr = a:expr
+
+    " if expr is a number, then convert to a number datatype
+    " so the window check below functions correctly
+    if match(l:expr, "^[0-9]*$") > -1
+        let l:expr = str2nr(l:expr)
+    endif
+
+    if a:canswitch && !empty(win_findbuf(bufnr(l:expr)))
         " second check makes sure the buffer is open
         " somewhere else (not hidden), otherwise sbuffer command
         " will open a split instead
         " https://stackoverflow.com/questions/10219419/distinguish-between-hidden-and-active-buffers-in-vim
         let l:save = &switchbuf
         set switchbuf=useopen,usetab
-        execute 'sbuffer ' . a:expr
+        execute 'sbuffer ' . l:expr
         let &switchbuf = l:save
-        return
     else
-        execute 'buffer ' . a:expr
+        execute 'buffer ' . l:expr
     endif
 endfunction
 
