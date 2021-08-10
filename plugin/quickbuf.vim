@@ -249,17 +249,16 @@ function s:RunPrompt(args)
 endfunction
 
 function s:ChangeBuffer(expr)
-    " TODO currently cannot check if window
-    " open in another tab
-    if g:quickbuf_switch_to_window == 1
-        if winbufnr(bufnr(a:expr)) > -1
-            let l:save = &switchbuf
-            set switchbuf=useopen,usetab
-            set switchbuf-=split
-            execute 'sbuffer ' . a:expr
-            let &switchbuf = l:save
-            return
-        endif
+    if g:quickbuf_switch_to_window == 1 && !empty(win_findbuf(bufnr(a:expr)))
+        " second check makes sure the buffer is open
+        " somewhere else (not hidden), otherwise sbuffer command
+        " will open a split instead
+        " https://stackoverflow.com/questions/10219419/distinguish-between-hidden-and-active-buffers-in-vim
+        let l:save = &switchbuf
+        set switchbuf=useopen,usetab
+        execute 'sbuffer ' . a:expr
+        let &switchbuf = l:save
+        return
     else
         execute 'buffer ' . a:expr
     endif
