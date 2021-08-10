@@ -21,6 +21,8 @@ let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 let g:quickbuf_line_preview_limit    = get(g:, "quickbuf_line_preview_limit", 10)
 let g:quickbuf_line_preview_truncate = get(g:, "quickbuf_line_preview_truncate", 20)
 let g:quickbuf_include_noname_regex  = get(g:, "quickbuf_include_noname_regex", "^!")
+let g:quickbuf_showbuffs_hl_cur      = get(g:, "quickbuf_showbuffs_hl_cur", 1)
+let g:quickbuf_showbuffs_show_mod    = get(g:, "quickbuf_showbuffs_show_mod", 1)
 
 function s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
@@ -74,7 +76,7 @@ function s:ShowBuffers(bufs, customcount)
         echohl Number
         " highlight current buffer
         let pre_spc = g:quickbuf_showbuffs_num_spacing-len(string(l:num))
-        if b == bufnr('%')
+        if g:quickbuf_showbuffs_hl_cur && b == bufnr('%')
             echon repeat(" ", l:pre_spc-2)
             echon "> "
         else
@@ -91,10 +93,10 @@ function s:ShowBuffers(bufs, customcount)
             echon fnamemodify(l:buf, g:quickbuf_showbuffs_filemod)
         endif
         " show if modified
-        if getbufvar(b, "&mod") == 1
+        if g:quickbuf_showbuffs_show_mod && getbufvar(b, "&mod")
             echon "*"
         endif
-        echohl NonText
+        echohl Comment
 
         echon " : "
         if empty(l:buf)
@@ -247,17 +249,16 @@ function s:RunPrompt(args)
 endfunction
 
 function s:ChangeBuffer(expr)
-    " TODO currently cannot check if window
-    " open in another tab
-    if g:quickbuf_switch_to_window == 1
-        if winbufnr(bufnr(a:expr)) > -1
-            let l:save = &switchbuf
-            set switchbuf=useopen,usetab
-            set switchbuf-=split
-            execute 'sbuffer ' . a:expr
-            let &switchbuf = l:save
-            return
-        endif
+    if g:quickbuf_switch_to_window == 1 && !empty(win_findbuf(bufnr(a:expr)))
+        " second check makes sure the buffer is open
+        " somewhere else (not hidden), otherwise sbuffer command
+        " will open a split instead
+        " https://stackoverflow.com/questions/10219419/distinguish-between-hidden-and-active-buffers-in-vim
+        let l:save = &switchbuf
+        set switchbuf=useopen,usetab
+        execute 'sbuffer ' . a:expr
+        let &switchbuf = l:save
+        return
     else
         execute 'buffer ' . a:expr
     endif
