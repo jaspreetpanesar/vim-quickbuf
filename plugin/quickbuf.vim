@@ -21,15 +21,16 @@ let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
 let g:quickbuf_line_preview_limit    = get(g:, "quickbuf_line_preview_limit", 10)
 let g:quickbuf_line_preview_truncate = get(g:, "quickbuf_line_preview_truncate", 20)
 let g:quickbuf_include_noname_regex  = get(g:, "quickbuf_include_noname_regex", "^!")
+let g:quickbuf_switchtowindow_regex  = get(g:, "quickbuf_switchtowindow_regex", "^@")
 let g:quickbuf_showbuffs_hl_cur      = get(g:, "quickbuf_showbuffs_hl_cur", 1)
 let g:quickbuf_showbuffs_show_mod    = get(g:, "quickbuf_showbuffs_show_mod", 1)
 
-function s:StripWhitespace(line)
+function! s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
     return substitute(a:line, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
-function s:BufferPreview(buf, trunc)
+function! s:BufferPreview(buf, trunc)
     let l:line = 1
     while 1
         " to stop possible infinite loop
@@ -58,7 +59,7 @@ function s:BufferPreview(buf, trunc)
     endif
 endfunction
 
-function s:ShowBuffers(bufs, customcount)
+function! s:ShowBuffers(bufs, customcount)
     " customcount : set to 1 to use counter,
     " or 0 to use bufnums
     if empty(a:bufs)
@@ -115,9 +116,9 @@ function s:ShowBuffers(bufs, customcount)
     endfor
 endfunction
 
-function s:GetMatchingBuffers(expr, limit, allowempty)
-    " allowempty - allow using empty expr to
-    " get all listed buffers
+function! s:GetMatchingBuffers(expr, limit, allowempty, includenoname=0)
+    " allowempty - allow using empty expr to get all listed buffers
+    " includenoname - include no name buffers (unsaved/temp files)
     let l:expr = substitute(a:expr, g:quickbuf_include_noname_regex, '', '')
 
     " prioritise active buffer number
@@ -138,7 +139,7 @@ function s:GetMatchingBuffers(expr, limit, allowempty)
     endif
 
     " include noname buffers
-    if (a:expr =~ g:quickbuf_include_noname_regex) && (l:count <= a:limit)
+    if a:includenoname && (l:count <= a:limit)
         for b in s:GetEmptyBuffers(a:limit-l:count)
             call add(l:bufs, bufnr(b))
         endfor
@@ -147,7 +148,7 @@ function s:GetMatchingBuffers(expr, limit, allowempty)
     return l:bufs
 endfunction
 
-function s:GetEmptyBuffers(limit)
+function! s:GetEmptyBuffers(limit)
     let l:bufs = []
     let l:count = 1
     for b in getbufinfo({'buflisted':1})
@@ -161,7 +162,7 @@ function s:GetEmptyBuffers(limit)
     return l:bufs
 endfunction
 
-function s:GetListSelection(bufs)
+function! s:GetListSelection(bufs)
     call s:ShowBuffers(a:bufs, 1)
     try
         let l:sel = nr2char(getchar())
@@ -178,13 +179,13 @@ function s:GetListSelection(bufs)
     endtry
 endfunction
 
-function s:ShowError(msg)
+function! s:ShowError(msg)
     echohl ErrorMsg
     echon a:msg
     echohl None
 endfunction
 
-function s:RunPrompt(args)
+function! s:RunPrompt(args)
     let l:pf = ''
     while 1
         let l:goto = input(g:quickbuf_prompt_string, l:pf, "buffer")
@@ -193,7 +194,18 @@ function s:RunPrompt(args)
             return
         endif
 
-        let l:buflist = s:GetMatchingBuffers(l:goto, 9, 0)
+        " determine attributes then remove them from input
+        let l:includenoname = s:HasFlag(l:goto, g:quickbuf_include_noname_regex)
+        let l:goto = s:ClearFlags(l:goto, g:quickbuf_include_noname_regex)
+
+        " adding this flag will perform the opposite function of the global
+        " switch window setting
+        " ie. if switch_window is true, then flag-prompt will not switch windows
+        " and not-flag-prompt will switch windows
+        let l:canswitch = s:HasFlag(l:goto, g:quickbuf_switchtowindow_regex) ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
+        let l:goto = s:ClearFlags(l:goto, g:quickbuf_switchtowindow_regex)
+
+        let l:buflist = s:GetMatchingBuffers(l:goto, 9, 0, l:includenoname)
 
         " remove current file
         let l:curf = index(l:buflist, bufnr('%'))
@@ -211,7 +223,7 @@ function s:RunPrompt(args)
             " special case: when whole file name input
             " and no buffer match was found, try changing anyway
             try
-                call s:ChangeBuffer( l:goto )
+                call s:ChangeBuffer( l:goto, l:canswitch )
                 return
             catch /E94\|E86/
             endtry
@@ -242,29 +254,59 @@ function s:RunPrompt(args)
 
         endif
 
-        call s:ChangeBuffer( l:buflist[0] )
+        call s:ChangeBuffer( l:buflist[0], l:canswitch )
         return
     endwhile
 
 endfunction
 
-function s:ChangeBuffer(expr)
-    if g:quickbuf_switch_to_window == 1 && !empty(win_findbuf(bufnr(a:expr)))
+function! s:ChangeBuffer(expr, canswitch=0)
+    let l:expr = a:expr
+
+    " if expr is a number, then convert to a number datatype
+    " so the window check below functions correctly
+    if match(l:expr, "^[0-9]*$") > -1
+        let l:expr = str2nr(l:expr)
+    endif
+
+    if a:canswitch && !empty(win_findbuf(bufnr(l:expr)))
         " second check makes sure the buffer is open
         " somewhere else (not hidden), otherwise sbuffer command
         " will open a split instead
         " https://stackoverflow.com/questions/10219419/distinguish-between-hidden-and-active-buffers-in-vim
         let l:save = &switchbuf
         set switchbuf=useopen,usetab
-        execute 'sbuffer ' . a:expr
+        execute 'sbuffer ' . l:expr
         let &switchbuf = l:save
-        return
     else
-        execute 'buffer ' . a:expr
+        execute 'buffer ' . l:expr
     endif
 endfunction
 
+function! s:HasFlag(expr, flag)
+    return (a:expr =~ a:flag)
+endfunction
+
+function! s:ClearFlags(...)
+    " first arg: string expression
+    " remaining args: 1 or more flag regex
+    let l:new = a:1
+    if a:0 >= 2
+        for f in a:000[1:]
+            let l:new = substitute(l:new, f, '', '')
+        endfor
+    endif
+    return l:new
+endfunction
+
+function! s:ToggleWindowSwitching(...)
+    " specific switching can be done through the variable
+    let g:quickbuf_switch_to_window = !g:quickbuf_switch_to_window
+    echo 'Quickbuf window switch ' . (g:quickbuf_switch_to_window ? 'enabled' : 'disabled')
+endfunction
+
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
-command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(<q-args>, 999, 1), 0)
+command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, g:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, g:quickbuf_include_noname_regex)), 1)
+command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
 
 
