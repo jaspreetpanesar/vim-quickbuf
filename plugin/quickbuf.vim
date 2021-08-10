@@ -225,7 +225,9 @@ function! s:RunPrompt(args)
             try
                 call s:ChangeBuffer( l:goto, l:canswitch )
                 return
-            catch /E94\|E86/
+            catch /E94\|E86\|E93/
+                " TODO may need to handle E93 a little different as its thrown
+                " when multiple matching buffers found but all have been deleted
             endtry
 
             " let l:pf = l:goto
