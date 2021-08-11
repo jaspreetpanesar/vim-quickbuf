@@ -11,19 +11,20 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-let g:quickbuf_showbuffs_num_spacing = get(g:, "quickbuf_showbuffs_num_spacing", 6)
-let g:quickbuf_showbuffs_filemod     = get(g:, "quickbuf_showbuffs_filemod", ":t")
-let g:quickbuf_showbuffs_pathmod     = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
-let g:quickbuf_showbuffs_noname_str  = get(g:, "quickbuf_showbuffs_noname_str", "#")
-let g:quickbuf_prompt_string         = get(g:, "quickbuf_prompt_string", " ~> ")
-let g:quickbuf_showbuffs_shortenpath = get(g:, "quickbuf_showbuffs_shortenpath", 0)
-let g:quickbuf_switch_to_window      = get(g:, "quickbuf_switch_to_window", 0)
-let g:quickbuf_line_preview_limit    = get(g:, "quickbuf_line_preview_limit", 10)
-let g:quickbuf_line_preview_truncate = get(g:, "quickbuf_line_preview_truncate", 20)
-let g:quickbuf_include_noname_regex  = get(g:, "quickbuf_include_noname_regex", "^!")
-let g:quickbuf_switchtowindow_regex  = get(g:, "quickbuf_switchtowindow_regex", "^@")
-let g:quickbuf_showbuffs_hl_cur      = get(g:, "quickbuf_showbuffs_hl_cur", 1)
-let g:quickbuf_showbuffs_show_mod    = get(g:, "quickbuf_showbuffs_show_mod", 1)
+let g:quickbuf_showbuffs_num_spacing   = get(g:, "quickbuf_showbuffs_num_spacing", 6)
+let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod", ":t")
+let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
+let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str", "#")
+let g:quickbuf_prompt_string           = get(g:, "quickbuf_prompt_string", " ~!FLAGS!> ")
+let g:quickbuf_prompt_switchwindowflag = get(g:, "quickbuf_prompt_switchwindowflag", "#")
+let g:quickbuf_showbuffs_shortenpath   = get(g:, "quickbuf_showbuffs_shortenpath", 0)
+let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window", 0)
+let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit", 10)
+let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
+let g:quickbuf_include_noname_regex    = get(g:, "quickbuf_include_noname_regex", "^!")
+let g:quickbuf_switchtowindow_regex    = get(g:, "quickbuf_switchtowindow_regex", "^@")
+let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
+let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
 
 function! s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
@@ -187,8 +188,12 @@ endfunction
 
 function! s:RunPrompt(args)
     let l:pf = ''
+    " generate prompt string from flags
+    let l:prompt = substitute(g:quickbuf_prompt_string, "!FLAGS!",
+                \ (g:quickbuf_switch_to_window ? g:quickbuf_prompt_switchwindowflag : ''),
+                \ '')
     while 1
-        let l:goto = input(g:quickbuf_prompt_string, l:pf, "buffer")
+        let l:goto = input(l:prompt, l:pf, "buffer")
 
         if empty(l:goto) 
             return
