@@ -313,7 +313,7 @@ function! s:ToggleWindowSwitching(...)
 endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
-command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, g:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, g:quickbuf_include_noname_regex)), 1)
+command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, g:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, g:quickbuf_include_noname_regex)), 0)
 command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
 
 
