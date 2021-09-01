@@ -265,10 +265,9 @@ function! s:RunPrompt(args)
         " and not-flag-prompt will switch windows
         let l:canswitch = s:_hasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
-        " TODO use alias functions rather than reading dict
         if s:_hasFlag('usealias')
-            if has_key(s:alias_list, s:_promptval())
-                call s:ChangeBuffer( s:alias_list[s:_promptval()], l:canswitch )
+            if s:AliasExists(s:_promptval())
+                call s:ChangeBuffer( s:GetAlias(s:_promptval(), 0), l:canswitch )
                 return
             else
                 call s:ShowError("\nalias not found")
@@ -412,6 +411,22 @@ function! s:RemoveAlias(key)
     else
         echo "Alias " . a:key . " not found"
     endif
+endfunction
+
+function! s:GetAlias(key, allowcreate=0)
+    " TODO probably remove this
+    if a:allowcreate
+        if !has_key(s:alias_list, a:key) && confirm("Alias " . a:key . " does not exist. Create a new?", "&Yes\n&No", 2) == 1
+            s:AddAlias(a:key, bufnr())
+        else
+            throw 'notfound'
+        endif
+    endif
+    return s:alias_list[a:key]
+endfunction
+
+function! s:AliasExists(key)
+    return has_key(s:alias_list, a:key)
 endfunction
 
 " https://vi.stackexchange.com/a/13590
