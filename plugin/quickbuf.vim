@@ -212,10 +212,11 @@ function! s:RunPrompt(args)
         if l:usealias
             if has_key(s:alias_list, l:goto)
                 call s:ChangeBuffer(s:alias_list[l:goto])
+                return
             else
-                call s:ShowError("\nAlias not found")
+                call s:ShowError("\nalias not found")
+                continue
             endif
-            return
         endif
 
         let l:includenoname = s:HasFlag(l:goto, g:quickbuf_include_noname_regex)
