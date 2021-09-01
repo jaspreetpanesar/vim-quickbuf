@@ -22,7 +22,7 @@ let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
 
-let s:quickbuf_prompt_switchwindowflag = "#"
+let s:quickbuf_prompt_switchwindowflag = "@"
 let s:quickbuf_prompt_string           = " ~!FLAGS!> "
 
 let s:alias_list = get(s:, "alias_list", {})
@@ -77,9 +77,6 @@ endfunction
 function! s:_createPromptString()
     " TODO create prompt string from flags
 endfunction
-
-" ===================
-
 
 function! s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
