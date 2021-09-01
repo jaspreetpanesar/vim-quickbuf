@@ -23,8 +23,11 @@ let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit", 
 let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
 let g:quickbuf_include_noname_regex    = get(g:, "quickbuf_include_noname_regex", "^!")
 let g:quickbuf_switchtowindow_regex    = get(g:, "quickbuf_switchtowindow_regex", "^@")
+let g:quickbuf_usealias_regex          = get(g:, "quickbuf_usealias_regex", "^#")
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
+
+let s:alias_list = get(s:, "alias_list", {})
 
 function! s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
@@ -200,6 +203,21 @@ function! s:RunPrompt(args)
         endif
 
         " determine attributes then remove them from input
+        " TODO cleaner way to remove flags
+
+        let l:usealias = s:HasFlag(l:goto, g:quickbuf_usealias_regex)
+        let l:goto = s:ClearFlags(l:goto, g:quickbuf_usealias_regex)
+
+        " TODO handle window switching flag too
+        if l:usealias
+            if has_key(s:alias_list, l:goto)
+                call s:ChangeBuffer(s:alias_list[l:goto])
+            else
+                echoerr "Alias not found"
+            endif
+            return
+        endif
+
         let l:includenoname = s:HasFlag(l:goto, g:quickbuf_include_noname_regex)
         let l:goto = s:ClearFlags(l:goto, g:quickbuf_include_noname_regex)
 
@@ -312,8 +330,30 @@ function! s:ToggleWindowSwitching(...)
     echo 'Quickbuf window switch ' . (g:quickbuf_switch_to_window ? 'enabled' : 'disabled')
 endfunction
 
+function! s:AddAlias(key, value)
+    let s:alias_list[a:key] = a:value
+    echo "Added alias for current buffer as " . a:key
+endfunction
+
+function! s:RemoveAlias(key)
+    if has_key(s:alias_list, a:key)
+        unlet s:alias_list[a:key]
+        echo "Removed alias " . a:key
+    else
+        echo "Alias " . a:key . " not found"
+    endif
+endfunction
+
+" https://vi.stackexchange.com/a/13590
+function! s:GetMatchingAliases(ArgLead, CmdLine, CursorPos)
+    return filter(keys(s:alias_list), 'v:val =~ "^' . a:ArgLead .'"')
+endfunction
+
+
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, g:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, g:quickbuf_include_noname_regex)), 0)
 command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
+command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
+command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
 
 
