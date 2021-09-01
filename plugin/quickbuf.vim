@@ -15,17 +15,18 @@ let g:quickbuf_showbuffs_num_spacing   = get(g:, "quickbuf_showbuffs_num_spacing
 let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod", ":t")
 let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
 let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str", "#")
-let g:quickbuf_prompt_string           = get(g:, "quickbuf_prompt_string", " ~!FLAGS!> ")
-let g:quickbuf_prompt_switchwindowflag = get(g:, "quickbuf_prompt_switchwindowflag", "#")
 let g:quickbuf_showbuffs_shortenpath   = get(g:, "quickbuf_showbuffs_shortenpath", 0)
 let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window", 0)
 let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit", 10)
 let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
-let g:quickbuf_include_noname_regex    = get(g:, "quickbuf_include_noname_regex", "^!")
-let g:quickbuf_switchtowindow_regex    = get(g:, "quickbuf_switchtowindow_regex", "^@")
-let g:quickbuf_usealias_regex          = get(g:, "quickbuf_usealias_regex", "^#")
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
+
+let s:quickbuf_prompt_switchwindowflag = "#"
+let s:quickbuf_prompt_string           = " ~!FLAGS!> "
+let s:quickbuf_include_noname_regex    = "^!"
+let s:quickbuf_switchtowindow_regex    = "^@"
+let s:quickbuf_usealias_regex          = "^#"
 
 let s:alias_list = get(s:, "alias_list", {})
 
@@ -123,7 +124,7 @@ endfunction
 function! s:GetMatchingBuffers(expr, limit, allowempty, includenoname=0)
     " allowempty - allow using empty expr to get all listed buffers
     " includenoname - include no name buffers (unsaved/temp files)
-    let l:expr = substitute(a:expr, g:quickbuf_include_noname_regex, '', '')
+    let l:expr = substitute(a:expr, s:quickbuf_include_noname_regex, '', '')
 
     " prioritise active buffer number
     if match(l:expr, "^[0-9]*$") > -1 && l:expr > 0 && bufexists(str2nr(l:expr))
@@ -192,8 +193,8 @@ endfunction
 function! s:RunPrompt(args)
     let l:pf = ''
     " generate prompt string from flags
-    let l:prompt = substitute(g:quickbuf_prompt_string, "!FLAGS!",
-                \ (g:quickbuf_switch_to_window ? g:quickbuf_prompt_switchwindowflag : ''),
+    let l:prompt = substitute(s:quickbuf_prompt_string, "!FLAGS!",
+                \ (g:quickbuf_switch_to_window ? s:quickbuf_prompt_switchwindowflag : ''),
                 \ '')
     while 1
         let l:goto = input(l:prompt, l:pf, "buffer")
@@ -205,8 +206,8 @@ function! s:RunPrompt(args)
         " determine attributes then remove them from input
         " TODO cleaner way to remove flags
 
-        let l:usealias = s:HasFlag(l:goto, g:quickbuf_usealias_regex)
-        let l:goto = s:ClearFlags(l:goto, g:quickbuf_usealias_regex)
+        let l:usealias = s:HasFlag(l:goto, s:quickbuf_usealias_regex)
+        let l:goto = s:ClearFlags(l:goto, s:quickbuf_usealias_regex)
 
         " TODO handle window switching flag too
         if l:usealias
@@ -219,15 +220,15 @@ function! s:RunPrompt(args)
             endif
         endif
 
-        let l:includenoname = s:HasFlag(l:goto, g:quickbuf_include_noname_regex)
-        let l:goto = s:ClearFlags(l:goto, g:quickbuf_include_noname_regex)
+        let l:includenoname = s:HasFlag(l:goto, s:quickbuf_include_noname_regex)
+        let l:goto = s:ClearFlags(l:goto, s:quickbuf_include_noname_regex)
 
         " adding this flag will perform the opposite function of the global
         " switch window setting
         " ie. if switch_window is true, then flag-prompt will not switch windows
         " and not-flag-prompt will switch windows
-        let l:canswitch = s:HasFlag(l:goto, g:quickbuf_switchtowindow_regex) ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
-        let l:goto = s:ClearFlags(l:goto, g:quickbuf_switchtowindow_regex)
+        let l:canswitch = s:HasFlag(l:goto, s:quickbuf_switchtowindow_regex) ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
+        let l:goto = s:ClearFlags(l:goto, s:quickbuf_switchtowindow_regex)
 
         let l:buflist = s:GetMatchingBuffers(l:goto, 9, 0, l:includenoname)
 
@@ -374,7 +375,7 @@ endfunction
 
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
-command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, g:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, g:quickbuf_include_noname_regex)), 0)
+command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, s:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, s:quickbuf_include_noname_regex)), 0)
 command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
