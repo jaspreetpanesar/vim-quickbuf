@@ -332,8 +332,20 @@ function! s:ToggleWindowSwitching(...)
 endfunction
 
 function! s:AddAlias(key, value)
+    " only allow aliases to start with a letter
+    if match(a:key, "^[a-zA-Z]") == -1
+        call s:ShowError("Alias must start with a letter")
+        return
+    endif
+
+    let l:haskey = has_key(s:alias_list, a:key)
     let s:alias_list[a:key] = a:value
-    echo "Added alias for current buffer as " . a:key
+
+    if l:haskey
+        echo "Updated alias " . a:key . " to current buffer"
+    else
+        echo "Added alias for current buffer as " . a:key
+    endif
 endfunction
 
 function! s:RemoveAlias(key)
