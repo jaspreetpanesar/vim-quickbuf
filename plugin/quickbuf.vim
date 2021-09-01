@@ -213,7 +213,7 @@ function! s:RunPrompt(args)
             if has_key(s:alias_list, l:goto)
                 call s:ChangeBuffer(s:alias_list[l:goto])
             else
-                echoerr "Alias not found"
+                call s:ShowError("\nAlias not found")
             endif
             return
         endif
