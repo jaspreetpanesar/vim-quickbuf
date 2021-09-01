@@ -24,11 +24,62 @@ let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 
 
 let s:quickbuf_prompt_switchwindowflag = "#"
 let s:quickbuf_prompt_string           = " ~!FLAGS!> "
-let s:quickbuf_include_noname_regex    = "^!"
-let s:quickbuf_switchtowindow_regex    = "^@"
-let s:quickbuf_usealias_regex          = "^#"
 
 let s:alias_list = get(s:, "alias_list", {})
+
+let s:_pd = {
+\ "f_usealias"     : 0,
+\ "f_windowswitch" : 0,
+\ "f_includenoname": 0,
+\ "p_base"         : 0,
+\ "p_sanitised"    : 0,
+\ "p_flagsonly"    : 0
+\ }
+
+let s:flag_regex = {
+\ "usealias"     : '^#',
+\ "windowswitch" : '^@',
+\ "includenoname": '^!'
+\ }
+
+let s:flag_display = {
+\ "usealias"     : '',
+\ "windowswitch" : '@',
+\ "includenoname": ''
+\ }
+
+function! s:_regeneratePromptData(expr)
+    let s:_pd['p_base'] = a:expr
+
+    let l:i = match(a:expr, "[a-zA-Z0-9]")
+    let s:_pd['p_sanitised'] = l:i > -1 ? a:expr[l:i:] : ''
+    let s:_pd['p_flagsonly'] = split( l:i > 0 ? a:expr[:l:i-1] : l:i < 0 ? a:expr : '', '\zs')
+    " ~ explanation for ^ ~
+    " when text is found, use index-1 to find end of flags in expr
+    " when no text found, whole expr must be flags
+    " when text is at the beginning of expr (pos 0), then no flags are present
+
+    " determine what flags are active using their regex match
+    for f in keys(s:flag_regex)
+        let s:_pd['f_'.f] = match(s:_pd['p_flagsonly'], s:flag_regex[f]) > -1
+    endfor
+
+endfunction
+
+function! s:_hasFlag(flag)
+    return get(s:_pd, 'f_'.a:flag, 0)
+endfunction
+
+function! s:_promptval()
+    return s:_pd['p_sanitised']
+endfunction
+
+function! s:_createPromptString()
+    " TODO create prompt string from flags
+endfunction
+
+" ===================
+
 
 function! s:StripWhitespace(line)
     " https://stackoverflow.com/a/4479072
@@ -64,7 +115,7 @@ function! s:BufferPreview(buf, trunc)
     endif
 endfunction
 
-function! s:ShowBuffers(bufs, customcount)
+function! s:ShowBuffers(bufs, customcount=0)
     " customcount : set to 1 to use counter,
     " or 0 to use bufnums
     if empty(a:bufs)
@@ -124,17 +175,16 @@ endfunction
 function! s:GetMatchingBuffers(expr, limit, allowempty, includenoname=0)
     " allowempty - allow using empty expr to get all listed buffers
     " includenoname - include no name buffers (unsaved/temp files)
-    let l:expr = substitute(a:expr, s:quickbuf_include_noname_regex, '', '')
 
     " prioritise active buffer number
-    if match(l:expr, "^[0-9]*$") > -1 && l:expr > 0 && bufexists(str2nr(l:expr))
-        return [l:expr]
+    if match(a:expr, "^[0-9]*$") > -1 && a:expr > 0 && bufexists(str2nr(a:expr))
+        return [a:expr]
     endif
 
     let l:bufs = []
     let l:count = 1
-    if !empty(l:expr) || a:allowempty
-        for b in getcompletion(l:expr, "buffer")
+    if !empty(a:expr) || a:allowempty
+        for b in getcompletion(a:expr, "buffer")
             if l:count > a:limit
                 break
             endif
@@ -192,27 +242,33 @@ endfunction
 
 function! s:RunPrompt(args)
     let l:pf = ''
-    " generate prompt string from flags
+    " ^ previous value to use for the prompt (under circumstances)
+
+    " TODO generate prompt string from flags
     let l:prompt = substitute(s:quickbuf_prompt_string, "!FLAGS!",
                 \ (g:quickbuf_switch_to_window ? s:quickbuf_prompt_switchwindowflag : ''),
                 \ '')
     while 1
+        " TODO use custom command for completion so that flags
+        " can modify what completion list is used
         let l:goto = input(l:prompt, l:pf, "buffer")
 
         if empty(l:goto) 
             return
         endif
 
-        " determine attributes then remove them from input
-        " TODO cleaner way to remove flags
+        call s:_regeneratePromptData(l:goto)
 
-        let l:usealias = s:HasFlag(l:goto, s:quickbuf_usealias_regex)
-        let l:goto = s:ClearFlags(l:goto, s:quickbuf_usealias_regex)
+        " adding this flag will perform the opposite function of the global
+        " switch window setting
+        " ie. if switch_window is true, then flag-prompt will not switch windows
+        " and not-flag-prompt will switch windows
+        let l:canswitch = s:_hasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
-        " TODO handle window switching flag too
-        if l:usealias
-            if has_key(s:alias_list, l:goto)
-                call s:ChangeBuffer(s:alias_list[l:goto])
+        " TODO use alias functions rather than reading dict
+        if s:_hasFlag('usealias')
+            if has_key(s:alias_list, s:_promptval())
+                call s:ChangeBuffer( s:alias_list[s:_promptval()], l:canswitch )
                 return
             else
                 call s:ShowError("\nalias not found")
@@ -220,17 +276,7 @@ function! s:RunPrompt(args)
             endif
         endif
 
-        let l:includenoname = s:HasFlag(l:goto, s:quickbuf_include_noname_regex)
-        let l:goto = s:ClearFlags(l:goto, s:quickbuf_include_noname_regex)
-
-        " adding this flag will perform the opposite function of the global
-        " switch window setting
-        " ie. if switch_window is true, then flag-prompt will not switch windows
-        " and not-flag-prompt will switch windows
-        let l:canswitch = s:HasFlag(l:goto, s:quickbuf_switchtowindow_regex) ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
-        let l:goto = s:ClearFlags(l:goto, s:quickbuf_switchtowindow_regex)
-
-        let l:buflist = s:GetMatchingBuffers(l:goto, 9, 0, l:includenoname)
+        let l:buflist = s:GetMatchingBuffers(s:_promptval(), 9, 0, s:_hasFlag('includenoname'))
 
         " remove current file
         let l:curf = index(l:buflist, bufnr('%'))
@@ -248,14 +294,14 @@ function! s:RunPrompt(args)
             " special case: when whole file name input
             " and no buffer match was found, try changing anyway
             try
-                call s:ChangeBuffer( l:goto, l:canswitch )
+                call s:ChangeBuffer( s:_promptval(), l:canswitch )
                 return
             catch /E94\|E86\|E93/
                 " TODO may need to handle E93 a little different as its thrown
                 " when multiple matching buffers found but all have been deleted
             endtry
 
-            " let l:pf = l:goto
+            " let l:pf = s:_promptval()
             call s:ShowError("\nno matches found")
             continue
         " select from buflist when multiple buffers
@@ -373,9 +419,13 @@ function! s:GetMatchingAliases(ArgLead, CmdLine, CursorPos)
     return filter(keys(s:alias_list), 'v:val =~ "^' . a:ArgLead .'"')
 endfunction
 
+function! s:ListBuffersCommand(expr)
+    call s:_regeneratePromptData(a:expr)
+    call s:ShowBuffers(s:GetMatchingBuffers(s:_promptval(), 999, 1, s:_hasFlag('includenoname')), 0)
+endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
-command! -nargs=? QBList call s:ShowBuffers(s:GetMatchingBuffers(s:ClearFlags(<q-args>, s:quickbuf_include_noname_regex), 999, 1, s:HasFlag(<q-args>, s:quickbuf_include_noname_regex)), 0)
+command! -nargs=? QBList call s:ListBuffersCommand(<q-args>)
 command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
