@@ -338,11 +338,13 @@ function! s:AddAlias(key, value)
         return
     endif
 
-    let l:haskey = has_key(s:alias_list, a:key)
+    " since there are no 0 buffer numbers, it can be used as the
+    " default no key found
+    let l:haskey = get(s:alias_list, a:key, 0)
     let s:alias_list[a:key] = a:value
 
     if l:haskey
-        echo "Updated alias " . a:key . " to current buffer"
+        echo "Updated alias " . a:key . " from " . l:haskey . " to current buffer"
     else
         echo "Added alias for current buffer as " . a:key
     endif
