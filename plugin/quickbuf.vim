@@ -349,6 +349,14 @@ function! s:AddAlias(key, value)
 endfunction
 
 function! s:RemoveAlias(key)
+    if a:key == "*"
+        if confirm("Delete all aliases?", "&Yes\n&No", 2) == 1
+            let s:alias_list = {}
+            echo "Removed all aliases"
+        endif
+        return
+    endif
+
     if has_key(s:alias_list, a:key)
         unlet s:alias_list[a:key]
         echo "Removed alias " . a:key
