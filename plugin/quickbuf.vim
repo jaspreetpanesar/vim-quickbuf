@@ -457,7 +457,7 @@ endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ListBuffersCommand(<q-args>)
-command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
+command! -nargs=? QBWindowSwitchToggle call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
 
