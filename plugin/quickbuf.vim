@@ -12,15 +12,15 @@ endif
 let g:loaded_quickbuf = 1
 
 let g:quickbuf_showbuffs_num_spacing   = get(g:, "quickbuf_showbuffs_num_spacing", 6)
-let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod", ":t")
-let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
-let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str", "#")
+let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod"    , ":t")
+let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod"    , ":~:.:h")
+let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str" , "#")
 let g:quickbuf_showbuffs_shortenpath   = get(g:, "quickbuf_showbuffs_shortenpath", 0)
-let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window", 0)
-let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit", 10)
+let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window"     , 0)
+let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit"   , 10)
 let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
-let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
-let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
+let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur"     , 1)
+let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"   , 1)
 
 let s:quickbuf_prompt_switchwindowflag = "@"
 let s:quickbuf_prompt_string           = " ~!FLAGS!> "
@@ -74,8 +74,29 @@ function! s:_promptval()
     return s:_pd['p_sanitised']
 endfunction
 
+function! s:_flagstring()
+    return join(s:_pd["p_flagsonly"], '')
+endfunction
+
 function! s:_createPromptString()
     " TODO create prompt string from flags
+endfunction
+
+" function has to be global, otherwise
+" the input() autocomplete doesn't find it 
+function! Quickbuf_PromptCompletion(A, L, P)
+    call s:_regeneratePromptData(a:A)
+
+    if s:_hasFlag('usealias')
+        let l:vals = s:GetMatchingAliases(s:_promptval())
+    else
+        let l:vals = getcompletion(s:_promptval(), "buffer")
+    endif
+
+    " to ensure flags are not removed on tab complete
+    let l:flags = s:_flagstring()
+    return map(l:vals, 'l:flags.v:val')
+
 endfunction
 
 function! s:StripWhitespace(line)
@@ -246,9 +267,7 @@ function! s:RunPrompt(args)
                 \ (g:quickbuf_switch_to_window ? s:quickbuf_prompt_switchwindowflag : ''),
                 \ '')
     while 1
-        " TODO use custom command for completion so that flags
-        " can modify what completion list is used
-        let l:goto = input(l:prompt, l:pf, "buffer")
+        let l:goto = input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion')
 
         if empty(l:goto) 
             return
@@ -427,8 +446,8 @@ function! s:AliasExists(key)
 endfunction
 
 " https://vi.stackexchange.com/a/13590
-function! s:GetMatchingAliases(ArgLead, CmdLine, CursorPos)
-    return filter(keys(s:alias_list), 'v:val =~ "^' . a:ArgLead .'"')
+function! s:GetMatchingAliases(A, ...)
+    return filter(keys(s:alias_list), 'v:val =~ "^' . a:A .'"')
 endfunction
 
 function! s:ListBuffersCommand(expr)
@@ -438,7 +457,7 @@ endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
 command! -nargs=? QBList call s:ListBuffersCommand(<q-args>)
-command! -nargs=? QBWindowSwitch call s:ToggleWindowSwitching(<q-args>)
+command! -nargs=? QBWindowSwitchToggle call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
 
