@@ -12,15 +12,15 @@ endif
 let g:loaded_quickbuf = 1
 
 let g:quickbuf_showbuffs_num_spacing   = get(g:, "quickbuf_showbuffs_num_spacing", 6)
-let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod", ":t")
-let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod", ":~:.:h")
-let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str", "#")
+let g:quickbuf_showbuffs_filemod       = get(g:, "quickbuf_showbuffs_filemod"    , ":t")
+let g:quickbuf_showbuffs_pathmod       = get(g:, "quickbuf_showbuffs_pathmod"    , ":~:.:h")
+let g:quickbuf_showbuffs_noname_str    = get(g:, "quickbuf_showbuffs_noname_str" , "#")
 let g:quickbuf_showbuffs_shortenpath   = get(g:, "quickbuf_showbuffs_shortenpath", 0)
-let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window", 0)
-let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit", 10)
+let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window"     , 0)
+let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit"   , 10)
 let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
-let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur", 1)
-let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod", 1)
+let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur"     , 1)
+let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"   , 1)
 
 let s:quickbuf_prompt_switchwindowflag = "@"
 let s:quickbuf_prompt_string           = " ~!FLAGS!> "
