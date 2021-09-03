@@ -22,8 +22,8 @@ let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur"     , 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"   , 1)
 
-let s:quickbuf_prompt_switchwindowflag = "@"
-let s:quickbuf_prompt_string           = " ~!FLAGS!> "
+let s:prompt_switchwindowflag = "@"
+let s:prompt_string           = " ~!FLAGS!> "
 
 let s:alias_list = get(s:, "alias_list", {})
 
@@ -269,8 +269,8 @@ function! s:RunPrompt(args)
     " ^ previous value to use for the prompt (under circumstances)
 
     " TODO generate prompt string from flags
-    let l:prompt = substitute(s:quickbuf_prompt_string, "!FLAGS!",
-                \ (g:quickbuf_switch_to_window ? s:quickbuf_prompt_switchwindowflag : ''),
+    let l:prompt = substitute(s:prompt_string, "!FLAGS!",
+                \ (g:quickbuf_switch_to_window ? s:prompt_switchwindowflag : ''),
                 \ '')
     while 1
 
