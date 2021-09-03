@@ -33,6 +33,7 @@ let s:_pd = {
 \ "f_includenoname": 0,
 \ "p_base"         : 0,
 \ "p_sanitised"    : 0,
+\ "p_isempty"      : 0,
 \ "p_flagsonly"    : 0
 \ }
 
@@ -53,6 +54,7 @@ function! s:_regeneratePromptData(expr)
 
     let l:i = match(a:expr, "[a-zA-Z0-9]")
     let s:_pd['p_sanitised'] = l:i > -1 ? a:expr[l:i:] : ''
+    let s:_pd['p_isempty']   = empty(s:_pd['p_sanitised'])
     let s:_pd['p_flagsonly'] = split( l:i > 0 ? a:expr[:l:i-1] : l:i < 0 ? a:expr : '', '\zs')
     " ~ explanation for ^ ~
     " when text is found, use index-1 to find end of flags in expr
@@ -72,6 +74,10 @@ endfunction
 
 function! s:_promptval()
     return s:_pd['p_sanitised']
+endfunction
+
+function! s:_promptempty()
+    return s:_pd['p_isempty']
 endfunction
 
 function! s:_flagstring()
@@ -267,13 +273,9 @@ function! s:RunPrompt(args)
                 \ (g:quickbuf_switch_to_window ? s:quickbuf_prompt_switchwindowflag : ''),
                 \ '')
     while 1
-        let l:goto = input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion')
 
-        if empty(l:goto) 
-            return
-        endif
-
-        call s:_regeneratePromptData(l:goto)
+        " TODO convert to local instancing of prompt obj rather than one global value
+        call s:_regeneratePromptData(input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion'))
 
         " adding this flag will perform the opposite function of the global
         " switch window setting
@@ -281,10 +283,21 @@ function! s:RunPrompt(args)
         " and not-flag-prompt will switch windows
         let l:canswitch = s:_hasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
-        if s:_hasFlag('usealias')
-            if s:AliasExists(s:_promptval())
-                call s:ChangeBuffer( s:GetAlias(s:_promptval(), 0), l:canswitch )
-                return
+        if s:_promptempty()
+            return
+        endif
+
+        if s:_hasFlag('usealias') && !s:_promptempty()
+            " allow nearest alias matching
+            let l:aliasmatches = s:GetMatchingAliases(s:_promptval())
+            if len(l:aliasmatches) > 0
+                " TODO handle multiple nearest matches
+                " if len(l:aliasbuf == 1)
+                    call s:ChangeBuffer( s:GetAliasValue(l:aliasmatches[0]), l:canswitch )
+                    return
+                " else
+                    " show selection list
+                " endif
             else
                 call s:ShowError("\nalias not found")
                 continue
@@ -429,8 +442,8 @@ function! s:RemoveAlias(key)
     endif
 endfunction
 
-function! s:GetAlias(key, allowcreate=0)
-    " TODO probably remove this
+function! s:GetAliasValue(key, allowcreate=0)
+    " TODO probably remove this (abandoned functionality)
     if a:allowcreate
         if !has_key(s:alias_list, a:key) && confirm("Alias " . a:key . " does not exist. Create a new?", "&Yes\n&No", 2) == 1
             s:AddAlias(a:key, bufnr())
@@ -439,10 +452,6 @@ function! s:GetAlias(key, allowcreate=0)
         endif
     endif
     return s:alias_list[a:key]
-endfunction
-
-function! s:AliasExists(key)
-    return has_key(s:alias_list, a:key)
 endfunction
 
 " https://vi.stackexchange.com/a/13590
