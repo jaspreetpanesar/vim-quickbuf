@@ -289,17 +289,17 @@ function! s:RunPrompt(args)
 
         if s:_hasFlag('usealias') && !s:_promptempty()
             " allow nearest alias matching
-            let l:aliasmatches = s:GetMatchingAliases(s:_promptval())
-            if len(l:aliasmatches) > 0
-                " TODO handle multiple nearest matches
-                " if len(l:aliasbuf == 1)
-                    call s:ChangeBuffer( s:GetAliasValue(l:aliasmatches[0]), l:canswitch )
-                    return
-                " else
-                    " show selection list
-                " endif
-            else
+            let l:aliasmatches = s:TryGetNearestAliasMatch(s:_promptval())
+            let l:amcount = len(l:aliasmatches)
+            if l:amcount == 0
                 call s:ShowError("\nalias not found")
+                continue
+            elseif l:amcount == 1
+                call s:ChangeBuffer( s:GetAliasValue(l:aliasmatches[0]), l:canswitch )
+                return
+            else
+                " TODO show selection menu? - inputlist()
+                call s:ShowError("\ntoo many alias matches")
                 continue
             endif
         endif
@@ -457,6 +457,19 @@ endfunction
 " https://vi.stackexchange.com/a/13590
 function! s:GetMatchingAliases(A, ...)
     return filter(keys(s:alias_list), 'v:val =~ "^' . a:A .'"')
+endfunction
+
+" similar to GetMatchingAliases but
+" does not allow empty expr
+" if exact key, match returns it only
+function! s:TryGetNearestAliasMatch(expr)
+    if empty(a:expr)
+        return []
+    elseif has_key(s:alias_list, a:expr)
+        return [a:expr]
+    else
+        return s:GetMatchingAliases(a:expr)
+    endif
 endfunction
 
 function! s:ListBuffersCommand(expr)
