@@ -25,9 +25,9 @@ let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"  
 let s:prompt_switchwindowflag = "@"
 let s:prompt_string           = " ~!FLAGS!> "
 
-let s:alias_list = get(s:, "alias_list", {})
+let s:_aliasdata = get(s:, "_aliasdata", {})
 
-let s:_pd = {
+let s:_promptdata = {
 \ "f_usealias"     : 0,
 \ "f_windowswitch" : 0,
 \ "f_includenoname": 0,
@@ -49,13 +49,13 @@ let s:flag_display = {
 \ "includenoname": ''
 \ }
 
-function! s:_regeneratePromptData(expr)
-    let s:_pd['p_base'] = a:expr
+function! s:PromptRegenerateData(expr)
+    let s:_promptdata['p_base'] = a:expr
 
     let l:i = match(a:expr, "[a-zA-Z0-9]")
-    let s:_pd['p_sanitised'] = l:i > -1 ? a:expr[l:i:] : ''
-    let s:_pd['p_isempty']   = empty(s:_pd['p_sanitised'])
-    let s:_pd['p_flagsonly'] = split( l:i > 0 ? a:expr[:l:i-1] : l:i < 0 ? a:expr : '', '\zs')
+    let s:_promptdata['p_sanitised'] = l:i > -1 ? a:expr[l:i:] : ''
+    let s:_promptdata['p_isempty']   = empty(s:_promptdata['p_sanitised'])
+    let s:_promptdata['p_flagsonly'] = split( l:i > 0 ? a:expr[:l:i-1] : l:i < 0 ? a:expr : '', '\zs')
     " ~ explanation for ^ ~
     " when text is found, use index-1 to find end of flags in expr
     " when no text found, whole expr must be flags
@@ -63,25 +63,25 @@ function! s:_regeneratePromptData(expr)
 
     " determine what flags are active using their regex match
     for f in keys(s:flag_regex)
-        let s:_pd['f_'.f] = match(s:_pd['p_flagsonly'], s:flag_regex[f]) > -1
+        let s:_promptdata['f_'.f] = match(s:_promptdata['p_flagsonly'], s:flag_regex[f]) > -1
     endfor
 
 endfunction
 
-function! s:_hasFlag(flag)
-    return get(s:_pd, 'f_'.a:flag, 0)
+function! s:PromptHasFlag(flag)
+    return get(s:_promptdata, 'f_'.a:flag, 0)
 endfunction
 
-function! s:_promptval()
-    return s:_pd['p_sanitised']
+function! s:PromptValue()
+    return s:_promptdata['p_sanitised']
 endfunction
 
-function! s:_promptempty()
-    return s:_pd['p_isempty']
+function! s:PromptIsEmpty()
+    return s:_promptdata['p_isempty']
 endfunction
 
-function! s:_flagstring()
-    return join(s:_pd["p_flagsonly"], '')
+function! s:PromptFlagAsString()
+    return join(s:_promptdata["p_flagsonly"], '')
 endfunction
 
 function! s:_createPromptString()
@@ -91,16 +91,16 @@ endfunction
 " function has to be global, otherwise
 " the input() autocomplete doesn't find it 
 function! Quickbuf_PromptCompletion(A, L, P)
-    call s:_regeneratePromptData(a:A)
+    call s:PromptRegenerateData(a:A)
 
-    if s:_hasFlag('usealias')
-        let l:vals = s:GetMatchingAliases(s:_promptval())
+    if s:PromptHasFlag('usealias')
+        let l:vals = s:GetMatchingAliases(s:PromptValue())
     else
-        let l:vals = getcompletion(s:_promptval(), "buffer")
+        let l:vals = getcompletion(s:PromptValue(), "buffer")
     endif
 
     " to ensure flags are not removed on tab complete
-    let l:flags = s:_flagstring()
+    let l:flags = s:PromptFlagAsString()
     return map(l:vals, 'l:flags.v:val')
 
 endfunction
@@ -275,22 +275,22 @@ function! s:RunPrompt(args)
     while 1
 
         " TODO convert to local instancing of prompt obj rather than one global value
-        call s:_regeneratePromptData(input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion'))
+        call s:PromptRegenerateData(input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion'))
 
         " adding this flag will perform the opposite function of the global
         " switch window setting
         " ie. if switch_window is true, then flag-prompt will not switch windows
         " and not-flag-prompt will switch windows
-        let l:canswitch = s:_hasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
+        let l:canswitch = s:PromptHasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
         " exit prompt if no values entered (excluding flags)
-        if s:_promptempty()
+        if s:PromptIsEmpty()
             return
         endif
 
-        if s:_hasFlag('usealias') && !s:_promptempty()
+        if s:PromptHasFlag('usealias') && !s:PromptIsEmpty()
             " allow nearest alias matching
-            let l:aliasmatches = s:TryGetNearestAliasMatch(s:_promptval())
+            let l:aliasmatches = s:TryGetNearestAliasMatch(s:PromptValue())
             let l:amcount = len(l:aliasmatches)
             if l:amcount == 0
                 call s:ShowError("\nalias not found")
@@ -305,7 +305,7 @@ function! s:RunPrompt(args)
             endif
         endif
 
-        let l:buflist = s:GetMatchingBuffers(s:_promptval(), 9, 0, s:_hasFlag('includenoname'))
+        let l:buflist = s:GetMatchingBuffers(s:PromptValue(), 9, 0, s:PromptHasFlag('includenoname'))
 
         " remove current file
         let l:curf = index(l:buflist, bufnr('%'))
@@ -323,14 +323,14 @@ function! s:RunPrompt(args)
             " special case: when whole file name input
             " and no buffer match was found, try changing anyway
             try
-                call s:ChangeBuffer( s:_promptval(), l:canswitch )
+                call s:ChangeBuffer( s:PromptValue(), l:canswitch )
                 return
             catch /E94\|E86\|E93/
                 " TODO may need to handle E93 a little different as its thrown
                 " when multiple matching buffers found but all have been deleted
             endtry
 
-            " let l:pf = s:_promptval()
+            " let l:pf = s:PromptValue()
             call s:ShowError("\nno matches found")
             continue
         " select from buflist when multiple buffers
@@ -416,8 +416,8 @@ function! s:AddAlias(key, value)
 
     " since there are no 0 buffer numbers, it can be used as the
     " default no key found
-    let l:haskey = get(s:alias_list, a:key, 0)
-    let s:alias_list[a:key] = a:value
+    let l:haskey = get(s:_aliasdata, a:key, 0)
+    let s:_aliasdata[a:key] = a:value
 
     if l:haskey
         echo "Updated alias " . a:key . " from " . l:haskey . " to current buffer"
@@ -429,14 +429,14 @@ endfunction
 function! s:RemoveAlias(key)
     if a:key == "*"
         if confirm("Delete all aliases?", "&Yes\n&No", 2) == 1
-            let s:alias_list = {}
+            let s:_aliasdata = {}
             echo "Removed all aliases"
         endif
         return
     endif
 
-    if has_key(s:alias_list, a:key)
-        unlet s:alias_list[a:key]
+    if has_key(s:_aliasdata, a:key)
+        unlet s:_aliasdata[a:key]
         echo "Removed alias " . a:key
     else
         echo "Alias " . a:key . " not found"
@@ -446,18 +446,18 @@ endfunction
 function! s:GetAliasValue(key, allowcreate=0)
     " TODO probably remove this (abandoned functionality)
     if a:allowcreate
-        if !has_key(s:alias_list, a:key) && confirm("Alias " . a:key . " does not exist. Create a new?", "&Yes\n&No", 2) == 1
+        if !has_key(s:_aliasdata, a:key) && confirm("Alias " . a:key . " does not exist. Create a new?", "&Yes\n&No", 2) == 1
             s:AddAlias(a:key, bufnr())
         else
             throw 'notfound'
         endif
     endif
-    return s:alias_list[a:key]
+    return s:_aliasdata[a:key]
 endfunction
 
 " https://vi.stackexchange.com/a/13590
 function! s:GetMatchingAliases(A, ...)
-    return filter(keys(s:alias_list), 'v:val =~ "^' . a:A .'"')
+    return filter(keys(s:_aliasdata), 'v:val =~ "^' . a:A .'"')
 endfunction
 
 " similar to GetMatchingAliases but
@@ -466,7 +466,7 @@ endfunction
 function! s:TryGetNearestAliasMatch(expr)
     if empty(a:expr)
         return []
-    elseif has_key(s:alias_list, a:expr)
+    elseif has_key(s:_aliasdata, a:expr)
         return [a:expr]
     else
         return s:GetMatchingAliases(a:expr)
@@ -474,8 +474,8 @@ function! s:TryGetNearestAliasMatch(expr)
 endfunction
 
 function! s:ListBuffersCommand(expr)
-    call s:_regeneratePromptData(a:expr)
-    call s:ShowBuffers(s:GetMatchingBuffers(s:_promptval(), 999, 1, s:_hasFlag('includenoname')), 0)
+    call s:PromptRegenerateData(a:expr)
+    call s:ShowBuffers(s:GetMatchingBuffers(s:PromptValue(), 999, 1, s:PromptHasFlag('includenoname')), 0)
 endfunction
 
 command! -nargs=? QBPrompt call s:RunPrompt(<q-args>)
