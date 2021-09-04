@@ -84,6 +84,10 @@ function! s:PromptFlagAsString()
     return join(s:_promptdata["p_flagsonly"], '')
 endfunction
 
+function! s:_flagstring()
+    return join(s:_pd["p_flagsonly"], '')
+endfunction
+
 function! s:_createPromptString()
     " TODO create prompt string from flags
 endfunction
