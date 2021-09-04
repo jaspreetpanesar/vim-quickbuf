@@ -283,6 +283,7 @@ function! s:RunPrompt(args)
         " and not-flag-prompt will switch windows
         let l:canswitch = s:_hasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
+        " exit prompt if no values entered (excluding flags)
         if s:_promptempty()
             return
         endif
