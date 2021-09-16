@@ -288,7 +288,7 @@ function! s:RunPrompt(args)
         let l:canswitch = s:PromptHasFlag('windowswitch') ? !g:quickbuf_switch_to_window : g:quickbuf_switch_to_window
 
         " exit prompt if no values entered (excluding flags)
-        if s:PromptIsEmpty()
+        if s:PromptIsEmpty() && !s:PromptHasFlag('includenoname')
             return
         endif
 
