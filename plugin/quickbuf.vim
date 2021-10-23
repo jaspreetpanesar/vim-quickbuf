@@ -6,9 +6,9 @@
 " Last Change: 2020 Apr 12
 " Licence:     This file is placed in the public domain.
 
-if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
-    finish
-endif
+" if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
+"     finish
+" endif
 let g:loaded_quickbuf = 1
 
 let g:quickbuf_showbuffs_num_spacing   = get(g:, "quickbuf_showbuffs_num_spacing", 6)
@@ -26,11 +26,13 @@ let s:prompt_switchwindowflag = "@"
 let s:prompt_string           = " ~!FLAGS!> "
 
 let s:_aliasdata = get(s:, "_aliasdata", {})
+let s:_altbuf = 0
 
 let s:_promptdata = {
 \ "f_usealias"     : 0,
 \ "f_windowswitch" : 0,
 \ "f_includenoname": 0,
+\ "f_altbuf"       : 0,
 \ "p_base"         : 0,
 \ "p_sanitised"    : 0,
 \ "p_isempty"      : 0,
@@ -40,13 +42,15 @@ let s:_promptdata = {
 let s:flag_regex = {
 \ "usealias"     : '^#',
 \ "windowswitch" : '^@',
-\ "includenoname": '^!'
+\ "includenoname": '^!',
+\ "altbuf"       : '^\.'
 \ }
 
 let s:flag_display = {
 \ "usealias"     : '',
 \ "windowswitch" : '@',
-\ "includenoname": ''
+\ "includenoname": '',
+\ "altbuf"       : ''
 \ }
 
 function! s:PromptRegenerateData(expr)
@@ -289,6 +293,11 @@ function! s:RunPrompt(args)
 
         " exit prompt if no values entered (excluding flags)
         if s:PromptIsEmpty() && !s:PromptHasFlag('includenoname')
+            " however, switch to altbuf if flag exists
+            " and an altbuf has been set
+            if s:PromptHasFlag('altbuf') && s:_altbuf > 0
+                call s:ChangeBuffer(s:_altbuf, l:canswitch)
+            endif
             return
         endif
 
@@ -374,6 +383,12 @@ function! s:ChangeBuffer(expr, canswitch=0)
     if match(l:expr, "^[0-9]*$") > -1
         let l:expr = str2nr(l:expr)
     endif
+
+    " set current buffer as alt because at this
+    " point the buffer change should be successful?
+    " TODO test this
+    " might need to catch error here and rethrow
+    let s:_altbuf = bufnr()
 
     if a:canswitch && !empty(win_findbuf(bufnr(l:expr)))
         " second check makes sure the buffer is open
@@ -488,4 +503,13 @@ command! -nargs=? QBWindowSwitchToggle call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
 
+" TESTING ONLY
+command! -nargs=0 QBMyAliases echo s:_aliasdata
+
+function! s:_debug()
+    for k in sort(keys(s:_promptdata))
+        echo k . ': ' . string(s:_promptdata[k])
+    endfor
+endfunction
+command! -nargs=? QBDebugPrompt call s:_debug()
 
