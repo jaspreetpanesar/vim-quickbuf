@@ -79,10 +79,12 @@ function g:PromptData.new(expr)
     endfor
 
 endfunction
-function g:PromptData.hasFlag(flag) endfunction
-function g:PromptData.isEmpty() endfunction
-function g:PromptData.flagAsString() endfunction
-function g:PromptData.isEmpty() endfunction
+function g:PromptData.hasFlag(flag)
+endfunction
+function g:PromptData.isEmpty()
+endfunction
+function g:PromptData.flagAsString()
+endfunction
 " -- Prompt Data class --
 
 function! s:PromptRegenerateData(expr)
