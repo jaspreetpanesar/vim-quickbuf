@@ -22,6 +22,7 @@ let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur"     , 1)
 let g:quickbuf_showbuffs_hl_alt        = get(g:, "quickbuf_showbuffs_hl_alt"     , 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"   , 1)
+let g:quickbuf_prompt_highlight        = get(g:, "quickbuf_prompt_highlight"     , "Label")
 
 let s:prompt_switchwindowflag = "@"
 let s:prompt_string           = " ~!FLAGS!> "
@@ -334,7 +335,7 @@ function! s:RunPrompt(args)
 
         " TODO convert to local instancing of prompt obj rather than one global value
         " use :h dictionary-functions, numbered-function
-        echohl Label
+        exec 'echohl ' . g:quickbuf_prompt_highlight
         call s:PromptRegenerateData(input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion'))
         echohl Normal
 
