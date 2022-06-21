@@ -7,7 +7,7 @@
 " Licence:     This file is placed in the public domain.
 
 if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
-    finish
+    " finish
 endif
 let g:loaded_quickbuf = 1
 
@@ -20,6 +20,7 @@ let g:quickbuf_switch_to_window        = get(g:, "quickbuf_switch_to_window"    
 let g:quickbuf_line_preview_limit      = get(g:, "quickbuf_line_preview_limit"   , 10)
 let g:quickbuf_line_preview_truncate   = get(g:, "quickbuf_line_preview_truncate", 20)
 let g:quickbuf_showbuffs_hl_cur        = get(g:, "quickbuf_showbuffs_hl_cur"     , 1)
+let g:quickbuf_showbuffs_hl_alt        = get(g:, "quickbuf_showbuffs_hl_alt"     , 1)
 let g:quickbuf_showbuffs_show_mod      = get(g:, "quickbuf_showbuffs_show_mod"   , 1)
 
 let s:prompt_switchwindowflag = "@"
@@ -48,6 +49,41 @@ let s:flag_display = {
 \ "windowswitch" : '@',
 \ "includenoname": ''
 \ }
+
+
+" -- Prompt Data class --
+let g:PromptData = {
+\ "f_usealias"     : 0,
+\ "f_windowswitch" : 0,
+\ "f_includenoname": 0,
+\ "p_base"         : 0,
+\ "p_sanitised"    : 0,
+\ "p_isempty"      : 0,
+\ "p_flagsonly"    : 0
+\ }
+function g:PromptData.new(expr)
+    self['p_base'] = a:expr
+
+    let l:i = match(a:expr, "[a-zA-Z0-9]")
+    let self['p_sanitised'] = l:i > -1 ? a:expr[l:i:] : ''
+    let self['p_isempty']   = empty(self['p_sanitised'])
+    let self['p_flagsonly'] = split( l:i > 0 ? a:expr[:l:i-1] : l:i < 0 ? a:expr : '', '\zs')
+    " ~ explanation for ^ ~
+    " when text is found, use index-1 to find end of flags in expr
+    " when no text found, whole expr must be flags
+    " when text is at the beginning of expr (pos 0), then no flags are present
+
+    " determine what flags are active using their regex match
+    for f in keys(s:flag_regex)
+        let self['f_'.f] = match(self['p_flagsonly'], s:flag_regex[f]) > -1
+    endfor
+
+endfunction
+function g:PromptData.hasFlag(flag) endfunction
+function g:PromptData.isEmpty() endfunction
+function g:PromptData.flagAsString() endfunction
+function g:PromptData.isEmpty() endfunction
+" -- Prompt Data class --
 
 function! s:PromptRegenerateData(expr)
     let s:_promptdata['p_base'] = a:expr
@@ -149,14 +185,19 @@ function! s:ShowBuffers(bufs, customcount=0)
     if empty(a:bufs)
         return
     endif
+
+    let l:max_buf = max(a:bufs) " largest buf num
+
+    " spacing:
+    " ...>.id
+    " create array [pre, flags, ids, modified, name, delim, path] for each buf
+    " determine required spacing from this array
+    " for each; print line
+
     let l:count = 1
     echo "\n"
     for b in a:bufs
-        if a:customcount
-            let l:num = l:count
-        else
-            let l:num = b
-        endif
+        let l:num = a:customcount ? l:count : b
 
         echohl Number
         " highlight current buffer
@@ -164,25 +205,35 @@ function! s:ShowBuffers(bufs, customcount=0)
         if g:quickbuf_showbuffs_hl_cur && b == bufnr('%')
             echon repeat(" ", l:pre_spc-2)
             echon "> "
+        elseif g:quickbuf_showbuffs_hl_alt && b == bufnr('#')
+            echon repeat(" ", l:pre_spc-2)
+            echon "- "
         else
             echon repeat(" ", l:pre_spc)
         endif
         echon l:num
 
-        echohl String
+        " add spacing
         let l:buf = bufname(b)
         echon "  "
+
+        " show if modified
+        echohl Normal
+        if g:quickbuf_showbuffs_show_mod && getbufvar(b, "&mod")
+            echon "*"
+            " echohl String
+        endif
+
+        " show information
+        " echohl String
         if empty(l:buf)
             echon g:quickbuf_showbuffs_noname_str . b
         else
             echon fnamemodify(l:buf, g:quickbuf_showbuffs_filemod)
         endif
-        " show if modified
-        if g:quickbuf_showbuffs_show_mod && getbufvar(b, "&mod")
-            echon "*"
-        endif
-        echohl Comment
 
+        " show delimter and path
+        echohl Comment
         echon " : "
         if empty(l:buf)
             let l:path = s:BufferPreview(b, g:quickbuf_line_preview_truncate)
@@ -276,10 +327,14 @@ function! s:RunPrompt(args)
     let l:prompt = substitute(s:prompt_string, "!FLAGS!",
                 \ (g:quickbuf_switch_to_window ? s:prompt_switchwindowflag : ''),
                 \ '')
+    echohl Normal
     while 1
 
         " TODO convert to local instancing of prompt obj rather than one global value
+        " use :h dictionary-functions, numbered-function
+        echohl Label
         call s:PromptRegenerateData(input(l:prompt, l:pf, 'customlist,Quickbuf_PromptCompletion'))
+        echohl Normal
 
         " adding this flag will perform the opposite function of the global
         " switch window setting
@@ -487,5 +542,4 @@ command! -nargs=? QBList call s:ListBuffersCommand(<q-args>)
 command! -nargs=? QBWindowSwitchToggle call s:ToggleWindowSwitching(<q-args>)
 command! -nargs=1 QBAddAlias call s:AddAlias(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:GetMatchingAliases QBRemoveAlias call s:RemoveAlias(<q-args>)
-
 
