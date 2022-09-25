@@ -38,6 +38,15 @@ function! s:bufitem.new(binfo) abort
     return item
 endfunction
 
+" renegrate minimal amount of data
+" ie. context, and flags
+" will be run everytime before item is shown
+function! s:bufitem.upd(binfo) abort
+    " update flags is_current, is_alternate, is_modified
+    " update context
+endfunction
+
+" regenerate all data
 function! s:bufitem.regen() abort
     let binfo = getbufinfo(self.bufnr)
     call self._gen(binfo)
@@ -76,7 +85,7 @@ function! s:bcache_load() abort
 endfunction
 
 "--------------------------------------------------
-"   *** Expression Object ***
+"   *** Expression Engine ***
 "--------------------------------------------------
 let s:Expression = {
 \ 'input': '',
