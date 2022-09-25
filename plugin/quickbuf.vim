@@ -18,18 +18,76 @@ let s:aliases = {}
 let s:buffercache = {}
 
 "--------------------------------------------------
+"   *** Buffer Context Items ***
+"--------------------------------------------------
+let s:bufitem = {
+\ 'name': '',
+\ 'context': '',
+\ 'fullpath': '',
+\ 'bufnr': '',
+\ 'is_modified': 0,
+\ 'is_current': 0,
+\ 'is_alternate': 0,
+\ 'is_noname': 0,
+\ }
+
+function! s:bufitem.new(binfo) abort
+    let item = copy(self)
+    self.bufnr = a:binfo.bufnr
+    call self._gen(a:binfo)
+    return item
+endfunction
+
+function! s:bufitem.regen() abort
+    let binfo = getbufinfo(self.bufnr)
+    call self._gen(binfo)
+endfunction
+
+function! s:bufitem._gen(binfo) abort
+    " assumes self.bufnr is already set
+
+    let self.is_current = (bufnr() == self.bufnr)
+    let self.is_alternate = (bufnr('#') == self.bufnr)
+    let self.is_modified = a:binfo.changed
+
+    let path = a:binfo.name
+    if empty(path)
+        let self.noname = 1
+        let self.name = '#'.self.bufnr
+   else
+        let self.fullpath = path
+        let self.name = fnamemodify(path, ':t')
+        let self.context = fnamemodify(path, ':h')
+    endif
+
+endfunction
+
+function! s:bufitem.tostring() abort
+    return self.name + ' : ' + self.context
+endfunction
+
+" TODO cache this list with autocmds ?
+function! s:bcache_load() abort
+    let items = []
+    for buf in getbufinfo({'buflisted':1})
+        call items->add(s:bufitem.new(buf))
+    endfor
+    let s:buffercache = items
+endfunction
+
+"--------------------------------------------------
 "   *** Expression Object ***
 "--------------------------------------------------
 let s:Expression = {
-\   'input': '',
-\   'inputf_flags': '',
-\   'inputf_chars': '',
-\   'flag_usealiases': 0,
-\   'flag_usearglist': 0,
-\   'flag_windowtoggle': 0,
-\   'data_prefill': '',
-\   'data_lastrequest': '',
-\   'data_lastresults': [],
+\ 'input': '',
+\ 'inputf_flags': '',
+\ 'inputf_chars': '',
+\ 'flag_usealiases': 0,
+\ 'flag_usearglist': 0,
+\ 'flag_windowtoggle': 0,
+\ 'data_prefill': '',
+\ 'data_lastrequest': '',
+\ 'data_lastresults': [],
 \ }
 
 function! s:Expression.new() abort
@@ -69,7 +127,9 @@ endfunction
 
 " returns path or v:none
 function! s:Expression.resolve() abort
-    " determine nearest path from input
+    call self.build()
+    " TODO determine nearest path from input
+    " and run multi selection matches where required
     return get(self.data_lastrequest, 0, v:none)
 endfunction
 
@@ -125,6 +185,7 @@ endfunction
 "--------------------------------------------------
 function! s:run_prompt() abort
     let s:oexpr = s:Expression.new()
+    call s:bcache_load()
 
     while 1
         call s:oexpr.prompt()
@@ -196,4 +257,5 @@ endfunction
 "--------------------------------------------------
 " command -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
 " command -nargs=1 QBAliasRemove call s:alias_remove(<args>)
+" command QBRunPrompt call s:run_prompt()
 
