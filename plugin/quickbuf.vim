@@ -94,6 +94,7 @@ let s:Expression = {
 \ 'flag_usealiases': 0,
 \ 'flag_usearglist': 0,
 \ 'flag_windowtoggle': 0,
+\ 'flag_multiselect': 0,
 \ 'data_prefill': '',
 \ 'data_lastrequest': '',
 \ 'data_lastresults': [],
@@ -108,7 +109,7 @@ endfunction
 function! s:Expression._cache() abort
 endfunction
 
-function! s:Expression.complete(A, C, P) abort
+function! s:Expression._complete(A, C, P) abort
     " buiild first to retrieve context
     call self.build(a:C)
 
@@ -130,20 +131,50 @@ function! s:Expression.complete(A, C, P) abort
 
 endfunction
 
-function! s:Expression.build(expr) abort
+function! s:Expression._build(expr) abort
     let self.input = a:expr
+    " TODO generate expression data
+endfunction
+
+function! s:Expression._match() abort
+    " TODO implement string match algo
 endfunction
 
 " returns path or v:none
 function! s:Expression.resolve() abort
-    call self.build()
-    " TODO determine nearest path from input
-    " and run multi selection matches where required
-    return get(self.data_lastrequest, 0, v:none)
+    if self.do_multiselect()
+        return self.multiselect()
+    endif
+
+    " otherwise always select top result
+    if len(self.data_lastresults) > 0
+        return self.data_lastresults[0]
+    else
+        throw 'no-matches-found'
+    endif
+
+endfunction
+
+" TODO name filter or scan or fetch?
+function! s:Expression.fetch() abort
+    return self.data_lastresults
 endfunction
 
 function! s:Expression.prompt() abort
-    self.input = input(self.promptstr, self.data_prefill, 'customlist,' . string(function('self.complete')))
+    let expr = input(self.promptstr, self.data_prefill, 'customlist,' . string(function('self._complete')))
+    let self.data_prefill = ''
+
+    if empty(expr)
+        let self.exit_requested = 1
+    else
+        let self.exit_requested = 0
+        call self._build(expr)
+    endif
+
+endfunction
+
+function! s:Expression.set_expr(expr) abort
+    call self._build(a:expr)
 endfunction
 
 function! s:Expression.can_switchto() abort
@@ -151,30 +182,55 @@ function! s:Expression.can_switchto() abort
     return self.flag_windowtoggle
 endfunction
 
+function! s:Expression.do_multiselect() abort
+    " TODO resolve based on global option + flag
+    return self.flag_multiselect
+endfunction
+
 function! s:Expression.exit_requested() abort
     return 0
 endfunction
 
-function! s:Expression.prefill(val) abort
-    self.data_prefill = val
-endfunction
-
-function! s:Expression.is_empty() abort
-    return empty(self.input)
-endfunction
-
 function! s:Expression.multiselect() abort
+    " TODO selection functionality will be handled here
+
+    " generate selection values for each record
+
+    call s:buffer_list(self.data_lastresults)
+
+    " listen for selection
+    let sel = getcharstr()
+
+    if empty(sel)
+        throw 'no-selection'
+    endif
+
+    let idx = " TODO selection to list index
+    if idx >= 0
+        return self.data_lastresults[idx]
+    else
+        " TODO this might prefil even when resolve() is used without the prompt, so need to check for that
+        let self.data_prefill = sel
+        throw 'invalid-selection'
+    endif
+
 endfunction
 
 "--------------------------------------------------
 "   *** Multiselection Display ***
 "--------------------------------------------------
+" TODO this shouldn't be multiselection
 " filename, context, id, is_modified, is_current,
 " is_alternate
-function! s:multiselection_list(rows) abort
+function! s:buffer_list(records) abort
+    for row in a:records
+        call s:buffer_list_row(row)
+    endfor
 endfunction
 
-function! s:multiselection_list_row(row) abort
+" @param records = bufitem
+function! s:buffer_list_row(row) abort
+    echo row.tostring()
 endfunction
 
 "--------------------------------------------------
@@ -190,35 +246,53 @@ function! s:complete_arglist(A, C, P) abort
 endfunction
 
 "--------------------------------------------------
-"   *** Prompt ***
+"   *** Interaction ***
 "--------------------------------------------------
-function! s:run_prompt() abort
-    let s:oexpr = s:Expression.new()
+function! s:pub_prompt() abort
     call s:bcache_load()
+    let s:oexpr = s:Expression.new()
 
     while 1
         call s:oexpr.prompt()
-        let path = s:oexpr.resolve()
 
-        if path isnot v:none
-            call s:switch(path, s:oexpr.can_switchto())
+        try
+            if !s:oexpr.exit_requested()
+                let path = s:oexpr.resolve()
+                call s:switch(path, s:oexpr.can_switchto())
+            endif
             return
 
-            " TODO for now, always break until theres a solution for
-            " determining a requested exit from the prompt
-            break
+        catch /no-matches-found/
+            call s:show_error('no matches found')
 
-        " elseif s:oexpr.exit_requested()
-        "     return
-        "
-        " else
-        "     call show_error('no matches could be found')
-        "     call s:oexpr.prefill(s:oexpr.last_request)
+        catch /invalid-selection/
+            " do nothing, re-run prompt
 
-        endif
+        endtry
 
     endwhile
 
+endfunction
+
+function! s:pub_list(expr)
+    " show result based on provided expr
+    " ie. same as running prompt with flag ? and without the prompt 
+    call s:bcache_load()
+    let s:oexpr = s:Expression.new()
+    call s:oexpr.set_expr(a:expr)
+    call s:buffer_list( s:oexpr.filter() )
+endfunction
+
+function! s:pub-less(expr) abort
+    call s:bcache_load()
+    let s:oexpr = s:Expression.new()
+    call s:oexpr.set_expr(a:expr)
+    try
+        let path = s:oexpr.resolve()
+        call s:switchto(path, s:oexpr.can_switchto())
+    catch /no-matches-found/
+        call s:show_error('no matches found')
+    endtry
 endfunction
 
 "--------------------------------------------------
@@ -264,7 +338,9 @@ endfunction
 "--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
-" command -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
-" command -nargs=1 QBAliasRemove call s:alias_remove(<args>)
-" command QBRunPrompt call s:run_prompt()
+command -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
+command -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<args>)
+command -nargs=+ QBList call s:pub_list(<q-args>)
+command -nargs=+ QBLess call s:pub_less(<q-args>)
+command QBPrompt call s:pub_prompt()
 
