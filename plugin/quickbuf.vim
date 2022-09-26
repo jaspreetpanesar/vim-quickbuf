@@ -102,6 +102,7 @@ let s:Expression = {
 \ 'data_prefill': '',
 \ 'data_lastrequest': '',
 \ 'data_lastresults': [],
+\ 'data_exitrequested': [],
 \ }
 
 function! s:Expression.new() abort
@@ -113,9 +114,9 @@ endfunction
 function! s:Expression._cache() abort
 endfunction
 
-function! s:Expression._complete(A, C, P) abort
+function! s:Expression._complete(A, L, P) abort
     " buiild first to retrieve context
-    call self.build(a:C)
+    call self.build(a:L)
 
     " determine which completion algo to use
     if self.is_empty()
@@ -150,6 +151,8 @@ function! s:Expression._match() abort
 endfunction
 
 function! s:Expression.resolve() abort
+    call self._match()
+
     if self.can_multiselect()
         return self.multiselect()
     endif
@@ -174,9 +177,9 @@ function! s:Expression.prompt() abort
     let self.data_prefill = ''
 
     if empty(expr)
-        let self.exit_requested = 1
+        let self.data_exitrequested = 1
     else
-        let self.exit_requested = 0
+        let self.data_exitrequested = 0
         call self._build(expr)
     endif
 
@@ -197,7 +200,7 @@ function! s:Expression.can_multiselect() abort
 endfunction
 
 function! s:Expression.exit_requested() abort
-    return 0
+    return self.data_exitrequested
 endfunction
 
 "--------------------------------------------------
@@ -255,13 +258,13 @@ endfunction
 "--------------------------------------------------
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
-function! s:complete_buffers(A, C, P) abort
+function! s:complete_buffers(A, L, P) abort
 endfunction
 
-function! s:complete_aliases(A, C, P) abort
+function! s:complete_aliases(A, L, P) abort
 endfunction
 
-function! s:complete_arglist(A, C, P) abort
+function! s:complete_arglist(A, L, P) abort
 endfunction
 
 "--------------------------------------------------
