@@ -10,17 +10,15 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-
 "--------------------------------------------------
 "   *** CONSTANTS ***
 "--------------------------------------------------
 let s:c_selvals = '012345689abcdefghijklmnopqrstuvwxyz' " TODO make configurable
 
-
 "--------------------------------------------------
 "   *** GLOBALS ***
 "--------------------------------------------------
-let s:oexpr = v:none
+let s:oexpr = v:null
 let s:aliases = {}
 let s:buffercache = {}
 
@@ -40,8 +38,7 @@ let s:bufitem = {
 
 function! s:bufitem.new(binfo) abort
     let item = copy(self)
-    self.bufnr = a:binfo.bufnr
-    call self._gen(a:binfo)
+    call item._gen(a:binfo)
     return item
 endfunction
 
@@ -60,8 +57,7 @@ function! s:bufitem.regen() abort
 endfunction
 
 function! s:bufitem._gen(binfo) abort
-    " assumes self.bufnr is already set
-
+    let self.bufnr = a:binfo.bufnr
     let self.is_current = (bufnr() == self.bufnr)
     let self.is_alternate = (bufnr('#') == self.bufnr)
     let self.is_modified = a:binfo.changed
@@ -79,14 +75,14 @@ function! s:bufitem._gen(binfo) abort
 endfunction
 
 function! s:bufitem.tostring() abort
-    return self.name + ' : ' + self.context
+    return self.name . ' (' . self.context . ')'
 endfunction
 
 " TODO cache this list with autocmds ?
 function! s:bcache_load() abort
     let items = []
     for buf in getbufinfo({'buflisted':1})
-        call items->add(s:bufitem.new(buf))
+        call add(items, s:bufitem.new(buf))
     endfor
     let s:buffercache = items
 endfunction
@@ -149,6 +145,8 @@ endfunction
 
 function! s:Expression._match() abort
     " TODO implement string match algo
+    let res = copy(s:buffercache)
+    let self.data_lastresults = res
 endfunction
 
 function! s:Expression.resolve() abort
@@ -166,7 +164,8 @@ function! s:Expression.resolve() abort
 endfunction
 
 " name filter or scan or fetch?
-function! s:Expression.fetch(limit) abort
+function! s:Expression.fetch(limit=-1) abort
+    call self._match()
     return self.data_lastresults[:a:limit]
 endfunction
 
@@ -240,7 +239,7 @@ endfunction
 "--------------------------------------------------
 function! s:buffer_list(records, ids) abort
     let idx = 0
-    let idlast = len(records)
+    let idlast = len(a:records)
     while idx < idlast
         call s:buffer_list_row(a:ids[idx], a:records[idx])
         let idx += 1
@@ -250,7 +249,7 @@ endfunction
 " @param records = bufitem
 " @param id = value to show before item
 function! s:buffer_list_row(id, row) abort
-    echo a:id . ' : ' a:row.tostring()
+    echo '[' . a:id . '] ' . a:row.tostring()
 endfunction
 
 "--------------------------------------------------
@@ -292,13 +291,16 @@ function! s:pub_prompt() abort
 endfunction
 
 " *** Show filtered buffer list only ***
-function! s:pub_list(expr)
+function! s:pub_list(expr) abort
     " show result based on provided expr
     " ie. same as running prompt with flag ? and without the prompt 
     call s:bcache_load()
     let s:oexpr = s:Expression.new()
     call s:oexpr.set_expr(a:expr)
-    call s:buffer_list( s:oexpr.filter() )
+    let blist = s:oexpr.fetch()
+    let idlist = copy(blist)
+    call map(idlist, 'v:val.bufnr')
+    call s:buffer_list(blist, idlist)
 endfunction
 
 " *** Headless Mode ***
@@ -357,9 +359,9 @@ endfunction
 "--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
-command -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
-command -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<args>)
-command -nargs=+ QBList call s:pub_list(<q-args>)
-command -nargs=+ QBLess call s:pub_less(<q-args>)
-command QBPrompt call s:pub_prompt()
+command! -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
+command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<args>)
+command! -nargs=* QBList call s:pub_list(<q-args>)
+command! -nargs=+ QBLess call s:pub_less(<q-args>)
+command! QBPrompt call s:pub_prompt()
 
