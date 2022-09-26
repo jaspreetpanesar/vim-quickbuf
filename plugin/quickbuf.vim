@@ -10,6 +10,13 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
+
+"--------------------------------------------------
+"   *** CONSTANTS ***
+"--------------------------------------------------
+let s:c_selvals = '012345689abcdefghijklmnopqrstuvwxyz' " TODO make configurable
+
+
 "--------------------------------------------------
 "   *** GLOBALS ***
 "--------------------------------------------------
@@ -158,9 +165,9 @@ function! s:Expression.resolve() abort
 
 endfunction
 
-" TODO name filter or scan or fetch?
-function! s:Expression.fetch() abort
-    return self.data_lastresults
+" name filter or scan or fetch?
+function! s:Expression.fetch(limit) abort
+    return self.data_lastresults[:a:limit]
 endfunction
 
 function! s:Expression.prompt() abort
@@ -198,14 +205,21 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    " TODO selection functionality will be handled here
-
     " generate selection values for each record
+    let blist = self.fetch(9)
+    let idlist = []
+    let idx = 1
+    for item in blist
+        call idlist->add(s:c_selvals[idx])
+        let idx += 1
+    endfor
 
-    call s:buffer_list(self.data_lastresults)
+    " show buffers
+    call s:buffer_list(blist, idlist)
 
     " listen for selection
     let sel = getcharstr()
+    " TODO sanitise values like 
 
     if empty(sel)
         throw 'no-selection'
@@ -224,15 +238,19 @@ endfunction
 "--------------------------------------------------
 "   *** Buffer List Display ***
 "--------------------------------------------------
-function! s:buffer_list(records) abort
-    for row in a:records
-        call s:buffer_list_row(row)
-    endfor
+function! s:buffer_list(records, ids) abort
+    let idx = 0
+    let idlast = len(records)
+    while idx < idlast
+        call s:buffer_list_row(a:ids[idx], a:records[idx])
+        let idx += 1
+    endwhile
 endfunction
 
 " @param records = bufitem
-function! s:buffer_list_row(row) abort
-    echo row.tostring()
+" @param id = value to show before item
+function! s:buffer_list_row(id, row) abort
+    echo a:id . ' : ' a:row.tostring()
 endfunction
 
 "--------------------------------------------------
@@ -304,7 +322,7 @@ function! s:switch_buffer(path, switchto=0) abort
         let save = &switchbuf
         let &switchbuf = useopen,usetab
     endif
-    " TODO might not need this try-catch
+    " might not need this try-catch
     try
         exec (a:switchto ? 's' : '') . 'buffer ' . a:path
     catch /E-94/
