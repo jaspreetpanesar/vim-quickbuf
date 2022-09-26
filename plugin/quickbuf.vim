@@ -154,12 +154,13 @@ function! s:Expression.resolve() abort
     call self._match()
 
     if self.can_multiselect()
-        return self.multiselect()
+        let sel = self.multiselect()
+        return sel.fullpath
     endif
 
     " otherwise always select top result
     if len(self.data_lastresults) > 0
-        return self.data_lastresults[0]
+        return self.data_lastresults[0].fullpath
     else
         throw 'no-matches-found'
     endif
@@ -173,7 +174,7 @@ function! s:Expression.fetch(limit=-1) abort
 endfunction
 
 function! s:Expression.prompt() abort
-    let expr = input(self.promptstr, self.data_prefill, 'customlist,' . string(function('self._complete')))
+    let expr = input(self.promptstr(), self.data_prefill, 'customlist,' . string(function('self._complete')))
     let self.data_prefill = ''
 
     if empty(expr)
@@ -201,6 +202,10 @@ endfunction
 
 function! s:Expression.exit_requested() abort
     return self.data_exitrequested
+endfunction
+
+function! s:Expression.promptstr() abort
+    return '> '
 endfunction
 
 "--------------------------------------------------
@@ -280,7 +285,7 @@ function! s:pub_prompt() abort
         try
             if !s:oexpr.exit_requested()
                 let path = s:oexpr.resolve()
-                call s:switch(path, s:oexpr.can_switchto())
+                call s:switch_buffer(path, s:oexpr.can_switchto())
             endif
             return
 
@@ -313,7 +318,7 @@ function! s:pub_less(expr) abort
     call s:oexpr.set_expr(a:expr)
     try
         let path = s:oexpr.resolve()
-        call s:switchto(path, s:oexpr.can_switchto())
+        call s:switch_buffer(path, s:oexpr.can_switchto())
     catch /no-matches-found/
         call s:show_error('no matches found')
     endtry
@@ -330,14 +335,13 @@ function! s:switch_buffer(path, switchto=0) abort
     " might not need this try-catch
     try
         exec (a:switchto ? 's' : '') . 'buffer ' . a:path
-    catch /E-94/
+    catch /E94/
         echoerr 'could not switch to buffer ' . a:path
 
     finally
         if a:switchto
             let &switchbuf = save
         endif
-
     endtry
 endfunction
 
