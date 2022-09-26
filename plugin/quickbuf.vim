@@ -89,7 +89,8 @@ endfunction
 "--------------------------------------------------
 let s:Expression = {
 \ 'input': '',
-\ 'inputf_flags': '',
+\ 'inputf_flagsbefore': '',
+\ 'inputf_flagsafter': '',
 \ 'inputf_chars': '',
 \ 'flag_usealiases': 0,
 \ 'flag_usearglist': 0,
@@ -116,13 +117,16 @@ function! s:Expression._complete(A, C, P) abort
     " determine which completion algo to use
     if self.is_empty()
         return self.input
+    endif
 
+    " TODO determine completion mode based on flag nearest to end rather
+    " than a precedence level?
     if self.flag_usealiases
-        let cfunc = function('s:complete.aliases')
+        let cfunc = function('s:complete_aliases')
     elseif self.flag_usearglist
-        let cfunc = function('s:complete.arglist')
+        let cfunc = function('s:complete_arglist')
     else
-        let cfunc = function('s:complete.buffers')
+        let cfunc = function('s:complete_buffers')
     endif
 
     " send character data to completion func
@@ -140,9 +144,8 @@ function! s:Expression._match() abort
     " TODO implement string match algo
 endfunction
 
-" returns path or v:none
 function! s:Expression.resolve() abort
-    if self.do_multiselect()
+    if self.can_multiselect()
         return self.multiselect()
     endif
 
@@ -178,11 +181,11 @@ function! s:Expression.set_expr(expr) abort
 endfunction
 
 function! s:Expression.can_switchto() abort
-    " TODO resolve based on global toggle
+    " TODO resolve based on global toggle + flag
     return self.flag_windowtoggle
 endfunction
 
-function! s:Expression.do_multiselect() abort
+function! s:Expression.can_multiselect() abort
     " TODO resolve based on global option + flag
     return self.flag_multiselect
 endfunction
@@ -191,6 +194,9 @@ function! s:Expression.exit_requested() abort
     return 0
 endfunction
 
+"--------------------------------------------------
+"   *** Expression Engine : Multiselection ***
+"--------------------------------------------------
 function! s:Expression.multiselect() abort
     " TODO selection functionality will be handled here
 
@@ -209,7 +215,6 @@ function! s:Expression.multiselect() abort
     if idx >= 0
         return self.data_lastresults[idx]
     else
-        " TODO this might prefil even when resolve() is used without the prompt, so need to check for that
         let self.data_prefill = sel
         throw 'invalid-selection'
     endif
@@ -217,11 +222,8 @@ function! s:Expression.multiselect() abort
 endfunction
 
 "--------------------------------------------------
-"   *** Multiselection Display ***
+"   *** Buffer List Display ***
 "--------------------------------------------------
-" TODO this shouldn't be multiselection
-" filename, context, id, is_modified, is_current,
-" is_alternate
 function! s:buffer_list(records) abort
     for row in a:records
         call s:buffer_list_row(row)
@@ -246,7 +248,7 @@ function! s:complete_arglist(A, C, P) abort
 endfunction
 
 "--------------------------------------------------
-"   *** Interaction ***
+"   *** Plugin Interaction ***
 "--------------------------------------------------
 function! s:pub_prompt() abort
     call s:bcache_load()
@@ -264,16 +266,14 @@ function! s:pub_prompt() abort
 
         catch /no-matches-found/
             call s:show_error('no matches found')
-
         catch /invalid-selection/
             " do nothing, re-run prompt
-
         endtry
 
     endwhile
-
 endfunction
 
+" *** Show filtered buffer list only ***
 function! s:pub_list(expr)
     " show result based on provided expr
     " ie. same as running prompt with flag ? and without the prompt 
@@ -283,7 +283,8 @@ function! s:pub_list(expr)
     call s:buffer_list( s:oexpr.filter() )
 endfunction
 
-function! s:pub-less(expr) abort
+" *** Headless Mode ***
+function! s:pub_less(expr) abort
     call s:bcache_load()
     let s:oexpr = s:Expression.new()
     call s:oexpr.set_expr(a:expr)
