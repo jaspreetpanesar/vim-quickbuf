@@ -100,8 +100,8 @@ endfunction
 "--------------------------------------------------
 let s:Expression = {
 \ 'input': '',
-\ 'inputflags': ['', '', ''],
-\ 'inputf_chars': '',
+\ 'inputflags': ['', ''],
+\ 'inputchars': '',
 \ 'data_prefill': '',
 \ 'data_lastrequest': '',
 \ 'data_lastresults': [],
@@ -119,15 +119,13 @@ endfunction
 
 function! s:Expression._complete(A, L, P) abort
     " buiild first to retrieve context
-    call self.build(a:L)
+    call self._build(a:L)
 
-    " determine which completion algo to use
     if self.is_empty()
         return self.input
     endif
 
-    " TODO determine completion mode based on flag nearest to end rather
-    " than a precedence level?
+    " TODO (future) determine completion mode based on flag nearest to end rather than a precedence level?
     if self.flag_usealiases()
         let cfunc = function('s:complete_aliases')
     elseif self.flag_usearglist()
@@ -137,14 +135,34 @@ function! s:Expression._complete(A, L, P) abort
     endif
 
     " send character data to completion func
-    " let results = cfunc()
-    " map() flags back into result values
+    " and map flags back into results
+    let results = cfunc()
+    call map(results, {_,val -> self.flags[0] . val . self.flags[1]})
 
 endfunction
 
 function! s:Expression._build(expr) abort
     let self.input = a:expr
-    " TODO generate expression data
+
+    if empty(a:expr)
+        return
+    endif
+
+    " #propt?@
+    " TODO do we support symbols in filenames? like _ and -
+
+    " TODO what do to do about extra spaces?
+
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\.]\+')
+    let self.inputchars = pos[0]
+    if pos[1] > -1
+        let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
+        let self.inputflags[1] = a:expr[pos[2]:]
+    else
+        " when no characters were found (ie. prompt empty)
+        let self.inputflags = [a:expr, '']
+    endif
+
 endfunction
 
 function! s:Expression._match() abort
@@ -214,9 +232,13 @@ function! s:Expression.exit_requested() abort
     return self.data_exitrequested
 endfunction
 
+function! s:Expression.is_empty() abort
+    return empty(self.inputchars)
+endfunction
+
 " *** Expression Flags ***
 function! s:Expression._hasflag(flag) abort
-    return self.inputflags[0].match(a:flag) > -1
+    return match((self.inputflags[0] . self.inputflags[1]), a:flag) > -1
 endfunction
 
 function! s:Expression.flag_usealiases() abort
@@ -241,13 +263,7 @@ endfunction
 function! s:Expression.multiselect() abort
     " generate selection values for each record
     let blist = self.fetch(9)
-    let idlist = []
-    let idx = 1
-    let last = len(blist)
-    while idx < last
-        call idlist->add(s:c_selvals[idx])
-        let idx += 1
-    endwhile
+    let idlist = map(copy(blist), {i -> s:c_selvals[i]})
 
     " show buffers
     call s:buffer_list(blist, idlist)
@@ -342,8 +358,7 @@ function! s:pub_list(expr) abort
     let s:oexpr = s:Expression.new()
     call s:oexpr.set_expr(a:expr)
     let blist = s:oexpr.fetch()
-    let idlist = copy(blist)
-    call map(idlist, 'v:val.bufnr')
+    let idlist = map(copy(blist), 'v:val.bufnr')
     call s:buffer_list(blist, idlist)
 endfunction
 
@@ -366,7 +381,7 @@ endfunction
 function! s:switch_buffer(path, switchto=0) abort
     if a:switchto
         let save = &switchbuf
-        let &switchbuf = useopen,usetab
+        let &switchbuf = 'useopen,usetab'
     endif
     " might not need this try-catch
     try
