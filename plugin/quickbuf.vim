@@ -197,6 +197,11 @@ function! s:Expression.set_expr(expr) abort
     call self._build(a:expr)
 endfunction
 
+function! s:Expression.promptstr() abort
+    return '> '
+endfunction
+
+" *** Expression Controls ***
 function! s:Expression.can_switchto() abort
     return (s:switch_windowtoggle ? !s:switch_windowtoggle : self.flag_windowtoggle())
 endfunction
@@ -209,10 +214,7 @@ function! s:Expression.exit_requested() abort
     return self.data_exitrequested
 endfunction
 
-function! s:Expression.promptstr() abort
-    return '> '
-endfunction
-
+" *** Expression Flags ***
 function! s:Expression._hasflag(flag) abort
     return self.inputflags[0].match(a:flag) > -1
 endfunction
