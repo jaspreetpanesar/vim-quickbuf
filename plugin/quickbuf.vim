@@ -10,6 +10,14 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
+
+"--------------------------------------------------
+"   *** CONFIGURATION ***
+"--------------------------------------------------
+" TODO convert to global variables
+let s:switch_windowtoggle = 0
+let s:switch_multiselect = 0
+
 "--------------------------------------------------
 "   *** CONSTANTS ***
 "--------------------------------------------------
@@ -92,13 +100,8 @@ endfunction
 "--------------------------------------------------
 let s:Expression = {
 \ 'input': '',
-\ 'inputf_flagsbefore': '',
-\ 'inputf_flagsafter': '',
+\ 'inputflags': ['', '', ''],
 \ 'inputf_chars': '',
-\ 'flag_usealiases': 0,
-\ 'flag_usearglist': 0,
-\ 'flag_windowtoggle': 0,
-\ 'flag_multiselect': 0,
 \ 'data_prefill': '',
 \ 'data_lastrequest': '',
 \ 'data_lastresults': [],
@@ -125,9 +128,9 @@ function! s:Expression._complete(A, L, P) abort
 
     " TODO determine completion mode based on flag nearest to end rather
     " than a precedence level?
-    if self.flag_usealiases
+    if self.flag_usealiases()
         let cfunc = function('s:complete_aliases')
-    elseif self.flag_usearglist
+    elseif self.flag_usearglist()
         let cfunc = function('s:complete_arglist')
     else
         let cfunc = function('s:complete_buffers')
@@ -195,13 +198,11 @@ function! s:Expression.set_expr(expr) abort
 endfunction
 
 function! s:Expression.can_switchto() abort
-    " TODO resolve based on global toggle + flag
-    return self.flag_windowtoggle
+    return (s:switch_windowtoggle ? !s:switch_windowtoggle : self.flag_windowtoggle())
 endfunction
 
 function! s:Expression.can_multiselect() abort
-    " TODO resolve based on global option + flag
-    return self.flag_multiselect
+    return (s:switch_multiselect ? !s:switch_multiselect : self.flag_multiselect())
 endfunction
 
 function! s:Expression.exit_requested() abort
@@ -210,6 +211,26 @@ endfunction
 
 function! s:Expression.promptstr() abort
     return '> '
+endfunction
+
+function! s:Expression._hasflag(flag) abort
+    return self.inputflags[0].match(a:flag) > -1
+endfunction
+
+function! s:Expression.flag_usealiases() abort
+    return self._hasflag('#')
+endfunction
+
+function! s:Expression.flag_usearglist() abort
+    return self._hasflag('$')
+endfunction
+
+function! s:Expression.flag_windowtoggle() abort
+    return self._hasflag('@')
+endfunction
+
+function! s:Expression.flag_multiselect() abort
+    return self._hasflag('?')
 endfunction
 
 "--------------------------------------------------
