@@ -155,7 +155,11 @@ function! s:Expression.resolve() abort
 
     if self.can_multiselect()
         let sel = self.multiselect()
-        return sel.fullpath
+        if sel isnot v:null
+            return sel.fullpath
+        else
+            throw 'invalid-selection'
+        endif
     endif
 
     " otherwise always select top result
@@ -216,25 +220,34 @@ function! s:Expression.multiselect() abort
     let blist = self.fetch(9)
     let idlist = []
     let idx = 1
-    for item in blist
+    let last = len(blist)
+    while idx < last
         call idlist->add(s:c_selvals[idx])
         let idx += 1
-    endfor
+    endwhile
 
     " show buffers
     call s:buffer_list(blist, idlist)
 
-    " listen for selection
+    " listen for choice
     let sel = getcharstr()
-    " TODO sanitise values like 
+
+    " special values like  will return a null value rather than
+    " raise an selection error
+    if match(sel, '\|\| ') >= 0
+        return v:null
+    endif
+
+    " sanitise selection
+    let sel_st = substitute(sel, '[^a-zA-Z0-9]', '', 'g')
 
     if empty(sel)
         throw 'no-selection'
     endif
 
-    let idx = " TODO selection to list index
+    let idx = index(s:c_selvals, sel_st)
     if idx >= 0
-        return self.data_lastresults[idx]
+        return blist[idx]
     else
         let self.data_prefill = sel
         throw 'invalid-selection'
