@@ -105,7 +105,7 @@ let s:Expression = {
 \ 'inputchars': '',
 \ 'data_prefill': '',
 \ 'data_lastrequest': '',
-\ 'data_lastresults': [],
+\ 'data_results': [],
 \ 'data_exitrequested': [],
 \ }
 
@@ -175,7 +175,8 @@ function! s:Expression._match() abort
     " TODO implement string match algo
     " try case sensitive match first, then case insensitive
     let res = copy(s:buffercache)
-    let self.data_lastresults = res
+    let self.data_results = res
+
 endfunction
 
 function! s:Expression.resolve() abort
@@ -191,8 +192,8 @@ function! s:Expression.resolve() abort
     endif
 
     " otherwise always select top result
-    if len(self.data_lastresults) > 0
-        return self.data_lastresults[0].fullpath
+    if len(self.data_results) > 0
+        return self.data_results[0].fullpath
     else
         throw 'no-matches-found'
     endif
@@ -202,7 +203,7 @@ endfunction
 " name filter or scan or fetch?
 function! s:Expression.fetch(limit=-1) abort
     call self._match()
-    return self.data_lastresults[:a:limit]
+    return self.data_results[:a:limit]
 endfunction
 
 function! s:Expression.prompt() abort
@@ -243,7 +244,7 @@ function! s:Expression.is_empty() abort
     return empty(self.inputchars)
 endfunction
 
-" *** Expression Flags ***
+" *** Expression Derived Values ***
 function! s:Expression._hasflag(flag) abort
     return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
 endfunction
@@ -327,7 +328,7 @@ function! s:complete_buffers(A, L, P) abort
 endfunction
 
 function! s:complete_aliases(A, L, P) abort
-    return map( copy(s:aliases), {key,val -> val} )
+    return filter(s:aliases, {key, val -> val =~? a:A})
 endfunction
 
 function! s:complete_arglist(A, L, P) abort
