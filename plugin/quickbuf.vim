@@ -148,15 +148,15 @@ endfunction
 
 function! s:Expression._complete(A, L, P) abort
     " buiild first to retrieve context
-    call self._build(a:L)
+    call self._build(a:A) " need to use A (not L) for :command completion to work correctly
 
     if self.is_empty()
-        return self.input
+        return self.input " TODO should this be removed?
     endif
 
     " TODO (future) determine completion mode based on flag nearest to end rather than a precedence level?
-    " let FuncRef = self.flag_usealiases() ? function('s:complete_aliases') : self.flag_usearglist() ? function('s:complete_arglist') : function('s:complete_buffers')
-    let FuncRef = function('s:complete_buffers')
+
+    let FuncRef = self.flag_usealiases() ?  function('s:complete_aliases') : self.flag_usearglist() ?  function('s:complete_arglist') : function('s:complete_buffers')
 
     " send character data to completion func
     " and map flags back into results
@@ -245,7 +245,7 @@ endfunction
 
 " *** Expression Flags ***
 function! s:Expression._hasflag(flag) abort
-    return match((self.inputflags[0] . self.inputflags[1]), a:flag) > -1
+    return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
 endfunction
 
 function! s:Expression.flag_usealiases() abort
@@ -253,7 +253,7 @@ function! s:Expression.flag_usealiases() abort
 endfunction
 
 function! s:Expression.flag_usearglist() abort
-    return self._hasflag('$')
+    return self._hasflag('\$')
 endfunction
 
 function! s:Expression.flag_windowtoggle() abort
@@ -323,15 +323,15 @@ endfunction
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
 function! s:complete_buffers(A, L, P) abort
-    return ["test", "test1", "test2", "test3"]
+    return ["buffer1", "buffer2"]
 endfunction
 
 function! s:complete_aliases(A, L, P) abort
-    return []
+    return map( copy(s:aliases), {key,val -> val} )
 endfunction
 
 function! s:complete_arglist(A, L, P) abort
-    return []
+    return ["arg1", "arg2"]
 endfunction
 
 "--------------------------------------------------
@@ -427,8 +427,10 @@ endfunction
 "--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
-command! -nargs=1 QBAliasAdd call s:alias_add(<args>, expand("%:p"))
-command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<args>)
+command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
+command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
-command! -nargs=+ QBLess call s:pub_less(<q-args>)
+command! -nargs=+ -complete=customlist,s:expression_complete QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
+
+
