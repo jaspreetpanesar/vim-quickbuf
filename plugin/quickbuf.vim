@@ -290,7 +290,7 @@ function! s:Expression.multiselect() abort
         throw 'no-selection'
     endif
 
-    let idx = index(s:msw_selection_vals, sel_st)
+    let idx = match(idlist, sel_st)
     if idx >= 0
         return blist[idx]
     else
