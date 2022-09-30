@@ -10,6 +10,12 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
+"--------------------------------------------------
+"   *** CONSTANTS ***
+"--------------------------------------------------
+" selection vals fallback
+let s:c_mselvals = '1234abcdef' " TODO make configurable
+let s:c_mselmax = 10
 
 "--------------------------------------------------
 "   *** CONFIGURATION ***
@@ -17,18 +23,13 @@ let g:loaded_quickbuf = 1
 " TODO convert to global variables
 let s:switch_windowtoggle = 0
 let s:switch_multiselect = 0
-
-"--------------------------------------------------
-"   *** CONSTANTS ***
-"--------------------------------------------------
-let s:c_selvals = '012345689abcdefghijklmnopqrstuvwxyz' " TODO make configurable
+let s:msw_selection_vals = s:c_mselvals
 
 "--------------------------------------------------
 "   *** GLOBALS ***
 "--------------------------------------------------
-let s:oexpr = v:null
 let s:aliases = {}
-let s:buffercache = {}
+let s:buffercache = []
 
 "--------------------------------------------------
 "   *** Buffer Context Items ***
@@ -108,10 +109,15 @@ let s:Expression = {
 \ 'data_exitrequested': [],
 \ }
 
+" TODO this should be unused now? where to cache (if that's still needed)
 function! s:Expression.new() abort
     let o = copy(self)
     call o._cache()
     return o
+endfunction
+
+function! s:Expression.reset() abort
+    let self.data_prefill = '' 
 endfunction
 
 function! s:Expression._cache() abort
@@ -151,7 +157,8 @@ function! s:Expression._build(expr) abort
     " #propt?@
     " TODO do we support symbols in filenames? like _ and -
 
-    " TODO what do to do about extra spaces?
+    " TODO what do to do about extra spaces? as i want to support multiple
+    " input words for increasing accuracy of match
 
     let pos = matchstrpos(a:expr, '[a-zA-Z0-9\.]\+')
     let self.inputchars = pos[0]
@@ -167,6 +174,7 @@ endfunction
 
 function! s:Expression._match() abort
     " TODO implement string match algo
+    " try case sensitive match first, then case insensitive
     let res = copy(s:buffercache)
     let self.data_lastresults = res
 endfunction
@@ -263,7 +271,7 @@ endfunction
 function! s:Expression.multiselect() abort
     " generate selection values for each record
     let blist = self.fetch(9)
-    let idlist = map(copy(blist), {i -> s:c_selvals[i]})
+    let idlist = map(copy(blist), {i -> s:msw_selection_vals[i]})
 
     " show buffers
     call s:buffer_list(blist, idlist)
@@ -284,7 +292,7 @@ function! s:Expression.multiselect() abort
         throw 'no-selection'
     endif
 
-    let idx = index(s:c_selvals, sel_st)
+    let idx = index(s:msw_selection_vals, sel_st)
     if idx >= 0
         return blist[idx]
     else
@@ -329,15 +337,15 @@ endfunction
 "--------------------------------------------------
 function! s:pub_prompt() abort
     call s:bcache_load()
-    let s:oexpr = s:Expression.new()
+    call s:Expression.reset()
 
     while 1
-        call s:oexpr.prompt()
+        call s:Expression.prompt()
 
         try
-            if !s:oexpr.exit_requested()
-                let path = s:oexpr.resolve()
-                call s:switch_buffer(path, s:oexpr.can_switchto())
+            if !s:Expression.exit_requested()
+                let path = s:Expression.resolve()
+                call s:switch_buffer(path, s:Expression.can_switchto())
             endif
             return
 
@@ -355,9 +363,9 @@ function! s:pub_list(expr) abort
     " show result based on provided expr
     " ie. same as running prompt with flag ? and without the prompt 
     call s:bcache_load()
-    let s:oexpr = s:Expression.new()
-    call s:oexpr.set_expr(a:expr)
-    let blist = s:oexpr.fetch()
+    call s:Expression.reset()
+    call s:Expression.set_expr(a:expr)
+    let blist = s:Expression.fetch()
     let idlist = map(copy(blist), 'v:val.bufnr')
     call s:buffer_list(blist, idlist)
 endfunction
@@ -365,11 +373,11 @@ endfunction
 " *** Headless Mode ***
 function! s:pub_less(expr) abort
     call s:bcache_load()
-    let s:oexpr = s:Expression.new()
-    call s:oexpr.set_expr(a:expr)
+    call s:Expression.reset()
+    call s:Expression.set_expr(a:expr)
     try
-        let path = s:oexpr.resolve()
-        call s:switch_buffer(path, s:oexpr.can_switchto())
+        let path = s:Expression.resolve()
+        call s:switch_buffer(path, s:Expression.can_switchto())
     catch /no-matches-found/
         call s:show_error('no matches found')
     endtry
@@ -422,4 +430,3 @@ command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:a
 command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
-
