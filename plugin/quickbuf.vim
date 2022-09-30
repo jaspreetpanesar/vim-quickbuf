@@ -165,12 +165,6 @@ function! s:Expression._complete(A, L, P) abort
 
 endfunction
 
-" (workaround) wrapper for assigning completion to prompt as dict
-" function cannot be referenced (not sure if possible)
-function! s:expression_complete(A, L, P)
-    return s:Expression._complete(a:A, a:L, a:P)
-endfunction
-
 function! s:Expression._match() abort
     " TODO implement string match algo
     " try case sensitive match first, then case insensitive
@@ -207,7 +201,11 @@ function! s:Expression.fetch(limit=-1) abort
 endfunction
 
 function! s:Expression.prompt() abort
-    let expr = input(self.promptstr(), self.data_prefill, 'customlist,' . string(function('s:expression_complete')))
+    " TODO does this work for normal vim? (workaround for assigning script
+    " file complete func in nvim not working)
+    " https://github.com/neovim/neovim/issues/16301
+    let expr = input(self.promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
+
     let self.data_prefill = ''
 
     if empty(expr)
@@ -426,12 +424,23 @@ function! s:alias_sync() abort
 endfunction
 
 "--------------------------------------------------
+"   *** Helpers ***
+"--------------------------------------------------
+" (workaround) wrapper for assigning completion to prompt as dict
+" function cannot be referenced (not sure if possible)
+function! s:CompleteFuncWrapper(A, L, P)
+    return s:Expression._complete(a:A, a:L, a:P)
+endfunction
+
+let s:CompleteFuncLambdaWrapper = {a,l,p -> s:Expression._complete(a,l,p)}
+
+"--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
 command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
 command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
-command! -nargs=+ -complete=customlist,s:expression_complete QBLess call s:pub_less(<q-args>)
+command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
 
 
