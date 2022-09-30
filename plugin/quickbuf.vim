@@ -123,6 +123,29 @@ endfunction
 function! s:Expression._cache() abort
 endfunction
 
+function! s:Expression._build(expr) abort
+    let self.input = a:expr
+
+    if empty(a:expr)
+        return
+    endif
+
+    " TODO what do to do about extra spaces? as i want to support multiple
+    " input words for increasing accuracy of match
+
+    " limit filename character scope to alphanumeric and _-%.
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._-%]\+')
+    let self.inputchars = pos[0]
+    if pos[1] > -1
+        let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
+        let self.inputflags[1] = a:expr[pos[2]:]
+    else
+        " when no characters were found (ie. prompt empty)
+        let self.inputflags = [a:expr, '']
+    endif
+
+endfunction
+
 function! s:Expression._complete(A, L, P) abort
     " buiild first to retrieve context
     call self._build(a:L)
@@ -144,31 +167,6 @@ function! s:Expression._complete(A, L, P) abort
     " and map flags back into results
     let results = cfunc()
     call map(results, {_,val -> self.flags[0] . val . self.flags[1]})
-
-endfunction
-
-function! s:Expression._build(expr) abort
-    let self.input = a:expr
-
-    if empty(a:expr)
-        return
-    endif
-
-    " #propt?@
-    " TODO do we support symbols in filenames? like _ and -
-
-    " TODO what do to do about extra spaces? as i want to support multiple
-    " input words for increasing accuracy of match
-
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\.]\+')
-    let self.inputchars = pos[0]
-    if pos[1] > -1
-        let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
-        let self.inputflags[1] = a:expr[pos[2]:]
-    else
-        " when no characters were found (ie. prompt empty)
-        let self.inputflags = [a:expr, '']
-    endif
 
 endfunction
 
