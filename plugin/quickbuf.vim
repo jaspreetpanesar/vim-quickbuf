@@ -155,19 +155,20 @@ function! s:Expression._complete(A, L, P) abort
     endif
 
     " TODO (future) determine completion mode based on flag nearest to end rather than a precedence level?
-    if self.flag_usealiases()
-        let cfunc = function('s:complete_aliases')
-    elseif self.flag_usearglist()
-        let cfunc = function('s:complete_arglist')
-    else
-        let cfunc = function('s:complete_buffers')
-    endif
+    " let FuncRef = self.flag_usealiases() ? function('s:complete_aliases') : self.flag_usearglist() ? function('s:complete_arglist') : function('s:complete_buffers')
+    let FuncRef = function('s:complete_buffers')
 
     " send character data to completion func
     " and map flags back into results
-    let results = cfunc()
-    call map(results, {_,val -> self.flags[0] . val . self.flags[1]})
+    let results = FuncRef(a:A, a:L, a:P)
+    return map(results, {_,val -> self.inputflags[0] . val . self.inputflags[1]})
 
+endfunction
+
+" (workaround) wrapper for assigning completion to prompt as dict
+" function cannot be referenced (not sure if possible)
+function! s:expression_complete(A, L, P)
+    return s:Expression._complete(a:A, a:L, a:P)
 endfunction
 
 function! s:Expression._match() abort
@@ -205,7 +206,7 @@ function! s:Expression.fetch(limit=-1) abort
 endfunction
 
 function! s:Expression.prompt() abort
-    let expr = input(self.promptstr(), self.data_prefill, 'customlist,' . string(function('self._complete')))
+    let expr = input(self.promptstr(), self.data_prefill, 'customlist,' . string(function('s:expression_complete')))
     let self.data_prefill = ''
 
     if empty(expr)
@@ -322,12 +323,15 @@ endfunction
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
 function! s:complete_buffers(A, L, P) abort
+    return ["test", "test1", "test2", "test3"]
 endfunction
 
 function! s:complete_aliases(A, L, P) abort
+    return []
 endfunction
 
 function! s:complete_arglist(A, L, P) abort
+    return []
 endfunction
 
 "--------------------------------------------------
