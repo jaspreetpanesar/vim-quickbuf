@@ -45,6 +45,7 @@ let s:bufitem = {
 \ 'is_noname': 0,
 \ }
 
+" TODO this should only be happening once per buffer lifetime
 function! s:bufitem.new(binfo) abort
     let item = copy(self)
     call item._gen(a:binfo)
@@ -116,6 +117,7 @@ function! s:Expression.new() abort
     return o
 endfunction
 
+" TODO rename to 'startnew'
 function! s:Expression.reset() abort
     let self.data_prefill = '' 
 endfunction
@@ -129,9 +131,6 @@ function! s:Expression._build(expr) abort
     if empty(a:expr)
         return
     endif
-
-    " TODO what do to do about extra spaces? as i want to support multiple
-    " input words for increasing accuracy of match
 
     " limit filename character scope to alphanumeric and _-%.
     let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%]\+')
@@ -151,10 +150,8 @@ function! s:Expression._complete(A, L, P) abort
     call self._build(a:A) " need to use A (not L) for :command completion to work correctly
 
     if self.is_empty()
-        return self.input " TODO should this be removed?
+        return self.input " TODO should this return nothing?
     endif
-
-    " TODO (future) determine completion mode based on flag nearest to end rather than a precedence level?
 
     let FuncRef = self.flag_usealiases() ?  function('s:complete_aliases') : self.flag_usearglist() ?  function('s:complete_arglist') : function('s:complete_buffers')
 
@@ -167,7 +164,9 @@ endfunction
 
 function! s:Expression._match() abort
     " TODO implement string match algo
-    " try case sensitive match first, then case insensitive
+    " - try case sensitive match first, then case insensitive
+    " - multiple words (sep by space) for increasing accuracy of match
+
     let res = copy(s:buffercache)
     let self.data_results = res
 
@@ -204,6 +203,8 @@ function! s:Expression.prompt() abort
     " TODO does this work for normal vim? (workaround for assigning script
     " file complete func in nvim not working)
     " https://github.com/neovim/neovim/issues/16301
+    " the definition needs to be an existing ref rather than a new lambda in 
+    " this one line as the gb-collector will immediatly destroy it
     let expr = input(self.promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
 
     let self.data_prefill = ''
@@ -222,7 +223,7 @@ function! s:Expression.set_expr(expr) abort
 endfunction
 
 function! s:Expression.promptstr() abort
-    return '> '
+    return '>> '
 endfunction
 
 " *** Expression Controls ***
@@ -426,7 +427,7 @@ endfunction
 "--------------------------------------------------
 "   *** Helpers ***
 "--------------------------------------------------
-" (workaround) wrapper for assigning completion to prompt as dict
+" (workaround) wrappers for assigning completion to prompt as dict
 " function cannot be referenced (not sure if possible)
 function! s:CompleteFuncWrapper(A, L, P)
     return s:Expression._complete(a:A, a:L, a:P)
