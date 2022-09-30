@@ -1,14 +1,15 @@
 
-# vim-quickbuf
-Allow for quick, and non-intrusive buffer switching through a custom prompt.
+<div align="center">
+<h3>vim-quickbuf</h3>
+<p>simplify buffer switching through non-instrusive promopt</p>
+</div>
 
-> add gif showing usage
+---
 
+<!-- add gif showing usage -->
+
+<!--
 ## Installation
-Use a plugin manager (eg. Vundle). Requires Vim version > 7
-```
-Plugin 'jaspreetpanesar/vim-quickbuf'
-```
 
 ## Usage
 Run using command:
@@ -31,4 +32,5 @@ Display all buffers matching pattern (uses vim's own buffer completion):
 ## Planned
 > finish the read me :P
 
+-->
 
