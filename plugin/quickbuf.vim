@@ -134,7 +134,7 @@ function! s:Expression._build(expr) abort
     " input words for increasing accuracy of match
 
     " limit filename character scope to alphanumeric and _-%.
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._-%]\+')
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%]\+')
     let self.inputchars = pos[0]
     if pos[1] > -1
         let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
