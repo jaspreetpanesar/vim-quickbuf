@@ -110,19 +110,12 @@ let s:Expression = {
 \ 'data_exitrequested': [],
 \ }
 
-" TODO this should be unused now? where to cache (if that's still needed)
-function! s:Expression.new() abort
-    let o = copy(self)
-    call o._cache()
-    return o
-endfunction
-
-" TODO rename to 'startnew'
 function! s:Expression.reset() abort
     let self.data_prefill = '' 
-endfunction
-
-function! s:Expression._cache() abort
+    " TODO how do we not duplicate these definitions/properties twice
+    let self.input  = ''
+    let self.inputchars  = ''
+    let self.inputflags  = ['', '']
 endfunction
 
 function! s:Expression._build(expr) abort
@@ -160,6 +153,7 @@ endfunction
 
 function! s:Expression._match() abort
     " TODO implement string match algo
+    " - if number only and bufexists (so we can switch to deleted buffers) go straight to buffer
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
 
@@ -318,15 +312,15 @@ endfunction
 "--------------------------------------------------
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
-function! s:complete_buffers(A, L, P) abort
+function! s:complete_buffers(value, ...) abort
     return ["buffer1", "buffer2"]
 endfunction
 
-function! s:complete_aliases(A, L, P) abort
-    return filter(keys(s:aliases), 'v:val =~ "^' . a:A .'"')
+function! s:complete_aliases(value, ...) abort
+    return filter(keys(s:aliases), 'v:val =~ "^' . a:value .'"')
 endfunction
 
-function! s:complete_arglist(A, L, P) abort
+function! s:complete_arglist(value, ...) abort
     return ["arg1", "arg2"]
 endfunction
 
