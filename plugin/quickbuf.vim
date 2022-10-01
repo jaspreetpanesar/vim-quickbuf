@@ -100,23 +100,19 @@ endfunction
 "--------------------------------------------------
 "   *** Expression Engine ***
 "--------------------------------------------------
-let s:Expression = {
-\ 'input': '',
-\ 'inputflags': ['', ''],
-\ 'inputchars': '',
-\ 'data_prefill': '',
-\ 'data_lastrequest': '',
-\ 'data_results': [],
-\ 'data_exitrequested': [],
-\ }
+let s:Expression = {}
 
 function! s:Expression.reset() abort
-    let self.data_prefill = '' 
-    " TODO how do we not duplicate these definitions/properties twice
     let self.input  = ''
     let self.inputchars  = ''
     let self.inputflags  = ['', '']
+    let self.data_prefill = ''
+    let self.data_results = []
+    let self.data_exitrequested = []
 endfunction
+
+" needed to setup object properties
+call s:Expression.reset()
 
 function! s:Expression._build(expr) abort
     let self.input = a:expr
