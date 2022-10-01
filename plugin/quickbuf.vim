@@ -20,10 +20,11 @@ let s:c_mselmax = 10
 "--------------------------------------------------
 "   *** CONFIGURATION ***
 "--------------------------------------------------
-" TODO convert to global variables
+" TODO convert to global configurable variables
 let s:switch_windowtoggle = 0
 let s:switch_multiselect = 0
 let s:msw_selection_vals = s:c_mselvals
+let s:custom_commandname = "QuickBuffer"
 
 "--------------------------------------------------
 "   *** GLOBALS ***
@@ -152,12 +153,22 @@ function! s:Expression._match() abort
     " TODO can add an optimisation step here
     " which checks whether the current expr is equal to previous expr
     " then use the previously generated results instead
+
+    " alternatively, match() can return its result set from cached storage (as
+    " it stores it now) or generate it if its out of date (ie. prompt expr
+    " is not the same as the cached/stored version)
+
     let FuncRef = self.flag_usealiases() ? function('s:complete_aliases') : 
                 \ self.flag_usearglist() ?  function('s:complete_arglist') : 
                 \ function('s:complete_buffers')
 
     let self.data_results = FuncRef(self.inputchars)
 
+endfunction
+
+function! s:Expression._promptstr() abort
+    " TODO use global switches to generate
+    return '>> '
 endfunction
 
 function! s:Expression.resolve() abort
@@ -193,7 +204,7 @@ function! s:Expression.prompt() abort
     " https://github.com/neovim/neovim/issues/16301
     " the definition needs to be an existing ref rather than a new lambda in 
     " this one line as the gb-collector will immediatly destroy it
-    let expr = input(self.promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
+    let expr = input(self._promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
 
     let self.data_prefill = ''
 
@@ -208,12 +219,6 @@ endfunction
 
 function! s:Expression.set_expr(expr) abort
     call self._build(a:expr)
-endfunction
-
-" TODO categorise func above and as private
-function! s:Expression.promptstr() abort
-    " TODO use global switches to generate
-    return '>> '
 endfunction
 
 " *** Expression Controls ***
@@ -320,13 +325,7 @@ function! s:complete_buffers(value, ...) abort
 
     " this algorithm will work on bufitems, but needs to return
     " raw full/relataive path matches
-
-    " TODO an empty string doesn't seem to be providing any completion results
-    " when first loaded for the less version, but using the test list works
-    "   for some reason, buffercache is empty when loading form less
-    " echoerr s:buffercache
-    " return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.fullpath})
-    return ['buffer1' , 'buffer2']
+    return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.fullpath})
 endfunction
 
 function! s:complete_aliases(value, ...) abort
@@ -433,6 +432,11 @@ endfunction
 " (workaround) wrappers for assigning completion to prompt as dict
 " function cannot be referenced (not sure if possible)
 function! s:CompleteFuncWrapper(value, ...)
+    " TODO think about workfow - where should we be loading the buffercache,
+    " and resetting the expression
+    "   - we need expression reset to tab complete
+    "   - we also need buffer cache to tab complete ?
+    call s:bcache_load()
     call s:Expression.reset()
     return s:Expression._complete(a:value)
 endfunction
@@ -456,8 +460,8 @@ command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
 
-" TODO single command QB (or QBuffer) that does both QBLess and QBPrompt
-" depending on if cmd args provided
+exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '.s:custom_commandname.' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif' 
+
 
 " testing only
 ca QBAA QBAliasAdd
