@@ -122,8 +122,9 @@ function! s:Expression._build(expr) abort
         return
     endif
 
-    " limit filename character scope to alphanumeric and _-%. and path slashes
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/]\+')
+    " limit filename character scope to alphanumeric and _-%. and path
+    " characters (slashes, and :)
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:]\+')
     let self.inputchars = pos[0]
     if pos[1] > -1
         let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
@@ -441,7 +442,7 @@ function! s:CompleteFuncWrapper(value, ...)
     return s:Expression._complete(a:value)
 endfunction
 
-let s:CompleteFuncLambdaWrapper = {a,... -> s:Expression._complete(a)}
+let s:CompleteFuncLambdaWrapper = {a,... -> s:CompleteFuncWrapper(a)}
 
 function! s:show_error(msg)
     " TODO after input() prompt, error is not on a newline
