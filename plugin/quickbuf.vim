@@ -149,15 +149,11 @@ function! s:Expression._complete(A, L, P) abort
     " buiild first to retrieve context
     call self._build(a:A) " need to use A (not L) for :command completion to work correctly
 
-    if self.is_empty()
-        return self.input " TODO should this return nothing?
-    endif
-
     let FuncRef = self.flag_usealiases() ?  function('s:complete_aliases') : self.flag_usearglist() ?  function('s:complete_arglist') : function('s:complete_buffers')
 
     " send character data to completion func
     " and map flags back into results
-    let results = FuncRef(a:A, a:L, a:P)
+    let results = FuncRef(self.inputchars, a:L, a:P)
     return map(results, {_,val -> self.inputflags[0] . val . self.inputflags[1]})
 
 endfunction
@@ -327,7 +323,7 @@ function! s:complete_buffers(A, L, P) abort
 endfunction
 
 function! s:complete_aliases(A, L, P) abort
-    return filter(s:aliases, {key, val -> val =~? a:A})
+    return filter(keys(s:aliases), 'v:val =~ "^' . a:A .'"')
 endfunction
 
 function! s:complete_arglist(A, L, P) abort
@@ -438,6 +434,7 @@ let s:CompleteFuncLambdaWrapper = {a,l,p -> s:Expression._complete(a,l,p)}
 "--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
+command! QBAliasList echo s:aliases
 command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
 command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
