@@ -180,9 +180,6 @@ function! s:Expression.resolve() abort
     endif
 
     if self.can_multiselect()
-        " TODO multiselection broken right now as bufitems no longer being
-        " used in expression result storage
-        throw 'not-implemented'
         let sel = self.multiselect()
         if sel is v:null
             throw 'invalid-selection'
@@ -301,6 +298,7 @@ endfunction
 "   *** Buffer List Display ***
 "--------------------------------------------------
 function! s:buffer_list(records, ids) abort
+    " TODO newline on display
     let idx = 0
     let idlast = len(a:records)
     while idx < idlast
@@ -312,7 +310,7 @@ endfunction
 " @param records = bufitem
 " @param id = value to show before item
 function! s:buffer_list_row(id, row) abort
-    echo '[' . a:id . '] ' . a:row.tostring()
+    echo '[' . a:id . '] ' . a:row
 endfunction
 
 "--------------------------------------------------
