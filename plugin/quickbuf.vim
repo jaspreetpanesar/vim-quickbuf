@@ -261,14 +261,9 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    " generate selection values for each record
     let blist = self.fetch(9)
     let idlist = map(copy(blist), {i -> s:msw_selection_vals[i]})
-
-    " show buffers
-    call s:buffer_list(blist, idlist)
-
-    " listen for choice
+    call s:multiselect_showlist(blist, idlist)
     let sel = getcharstr()
 
     " special values like  will return a null value rather than
@@ -277,39 +272,54 @@ function! s:Expression.multiselect() abort
         return v:null
     endif
 
-    " sanitise selection
+    " TODO we shouldn't just santisize everything because then we can't
+    " enter new flag on the prefil if they were entered (might need to 
+    " rework this and what inputs should be allowed)
+
+    " and sanitise values we don't need
     let sel_st = substitute(sel, '[^a-zA-Z0-9]', '', 'g')
 
+    " TODO is this ever thrown??
     if empty(sel)
         throw 'no-selection'
     endif
 
     let idx = match(idlist, sel_st)
-    if idx >= 0
-        return blist[idx]
-    else
+    if idx == -1
         let self.data_prefill = sel
         throw 'invalid-selection'
     endif
 
+    " hides the message display helper (press key to continue) on
+    " successful selection
+    redraw
+    return blist[idx]
+
 endfunction
 
 "--------------------------------------------------
-"   *** Buffer List Display ***
+"   *** Multiselect Display ***
 "--------------------------------------------------
-function! s:buffer_list(records, ids) abort
-    " TODO newline on display
+function! s:multiselect_showlist(rows, ids) abort
+    " TODO support for neat-list
+    " if exists('loaded_neatlist') else use generic
+    call s:multiselect_showlist_generic(a:rows, a:ids)
+endfunction
+
+function! s:multiselect_showlist_generic(rows, ids) abort
+    echo "\n"
     let idx = 0
-    let idlast = len(a:records)
+    let idlast = len(a:rows)
     while idx < idlast
-        call s:buffer_list_row(a:ids[idx], a:records[idx])
+        call s:multiselect_showrow_generic(a:ids[idx], a:rows[idx])
         let idx += 1
     endwhile
 endfunction
 
 " @param records = bufitem
 " @param id = value to show before item
-function! s:buffer_list_row(id, row) abort
+" uses generic str value display so any list of str can be multiselected
+function! s:multiselect_showrow_generic(id, row) abort
     echo '[' . a:id . '] ' . a:row
 endfunction
 
