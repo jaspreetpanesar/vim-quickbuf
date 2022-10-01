@@ -413,15 +413,15 @@ endfunction
 "--------------------------------------------------
 function! s:alias_add(name, path) abort
     let s:aliases[a:name] = a:path
-    call s:alias_sync()
+    call s:alias_serialise()
 endfunction
 
 function! s:alias_remove(name, path) abort
     call s:aliases->remove(name)
-    call s:alias_sync()
+    call s:alias_serialise()
 endfunction
 
-function! s:alias_sync() abort
+function! s:alias_serialise() abort
     return 0
     " TODO regenerate global var
 endfunction
