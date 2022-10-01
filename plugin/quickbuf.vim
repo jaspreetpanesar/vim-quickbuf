@@ -165,18 +165,20 @@ endfunction
 function! s:Expression.resolve() abort
     call self._match()
 
-    if self.can_multiselect()
+    let rescount = len(self.data_results)
+
+    if rescount > 0 && self.can_multiselect()
         let sel = self.multiselect()
         if sel isnot v:null
             return sel.fullpath
         else
             throw 'invalid-selection'
         endif
-    endif
 
     " otherwise always select top result
-    if len(self.data_results) > 0
+    elseif rescount > 1
         return self.data_results[0].fullpath
+
     else
         throw 'no-matches-found'
     endif
@@ -424,6 +426,13 @@ function! s:CompleteFuncWrapper(A, L, P)
 endfunction
 
 let s:CompleteFuncLambdaWrapper = {a,l,p -> s:Expression._complete(a,l,p)}
+
+function! s:show_error(msg)
+    " TODO after input() prompt, error is not on a newline
+    echohl Error
+    echo a:msg
+    echohl None
+endfunction
 
 "--------------------------------------------------
 "   *** Commands ***
