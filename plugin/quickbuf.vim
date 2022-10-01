@@ -74,7 +74,7 @@ function! s:bufitem._gen(binfo) abort
 
     let path = a:binfo.name
     if empty(path)
-        let self.noname = 1
+        let self.is_noname = 1
         let self.name = '#'.self.bufnr
    else
         let self.fullpath = path
@@ -103,12 +103,12 @@ endfunction
 let s:Expression = {}
 
 function! s:Expression.reset() abort
-    let self.input  = ''
-    let self.inputchars  = ''
-    let self.inputflags  = ['', '']
+    let self.input = ''
+    let self.inputchars = ''
+    let self.inputflags = ['', '']
     let self.data_prefill = ''
     let self.data_results = []
-    let self.data_exitrequested = []
+    let self.data_exitrequested = 0
 endfunction
 
 " needed to setup object properties
@@ -121,8 +121,8 @@ function! s:Expression._build(expr) abort
         return
     endif
 
-    " limit filename character scope to alphanumeric and _-%.
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%]\+')
+    " limit filename character scope to alphanumeric and _-%. and path slashes
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/]\+')
     let self.inputchars = pos[0]
     if pos[1] > -1
         let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
@@ -135,49 +135,51 @@ function! s:Expression._build(expr) abort
 endfunction
 
 function! s:Expression._complete(A, L, P) abort
-    " buiild first to retrieve context
-    call self._build(a:A) " need to use A (not L) for :command completion to work correctly
-
-    let FuncRef = self.flag_usealiases() ?  function('s:complete_aliases') : self.flag_usearglist() ?  function('s:complete_arglist') : function('s:complete_buffers')
+    " need to use A (not L) for command-completion to work correctly
+    " as L will also include precending command before argument, eg.
+    "   :QBLess test     <- A='test' L='QBLess test'
+    call self._build(a:A)
 
     " send character data to completion func
     " and map flags back into results
-    let results = FuncRef(self.inputchars, a:L, a:P)
+    call self._match()
+    let results = copy(self.data_results)
     return map(results, {_,val -> self.inputflags[0] . val . self.inputflags[1]})
 
 endfunction
 
 function! s:Expression._match() abort
-    " TODO implement string match algo
-    " - if number only and bufexists (so we can switch to deleted buffers) go straight to buffer
-    " - try case sensitive match first, then case insensitive
-    " - multiple words (sep by space) for increasing accuracy of match
+    " TODO can add an optimisation step here
+    " which checks whether the current expr is equal to previous expr
+    " then use the previously generated results instead
+    let FuncRef = self.flag_usealiases() ? function('s:complete_aliases') : 
+                \ self.flag_usearglist() ?  function('s:complete_arglist') : 
+                \ function('s:complete_buffers')
 
-    let res = copy(s:buffercache)
-    let self.data_results = res
+    let self.data_results = FuncRef(self.inputchars)
 
 endfunction
 
 function! s:Expression.resolve() abort
     call self._match()
 
-    let rescount = len(self.data_results)
-
-    if rescount > 0 && self.can_multiselect()
-        let sel = self.multiselect()
-        if sel isnot v:null
-            return sel.fullpath
-        else
-            throw 'invalid-selection'
-        endif
-
-    " otherwise always select top result
-    elseif rescount > 1
-        return self.data_results[0].fullpath
-
-    else
+    if len(self.data_results) == 0
         throw 'no-matches-found'
     endif
+
+    if self.can_multiselect()
+        " TODO multiselection broken right now as bufitems no longer being
+        " used in expression result storage
+        throw 'not-implemented'
+        let sel = self.multiselect()
+        if sel is v:null
+            throw 'invalid-selection'
+        endif
+        return sel
+    endif
+
+    " otherwise always return the top match
+    return self.data_results[0]
 
 endfunction
 
@@ -210,7 +212,9 @@ function! s:Expression.set_expr(expr) abort
     call self._build(a:expr)
 endfunction
 
+" TODO categorise func above and as private
 function! s:Expression.promptstr() abort
+    " TODO use global switches to generate
     return '>> '
 endfunction
 
@@ -231,7 +235,7 @@ function! s:Expression.is_empty() abort
     return empty(self.inputchars)
 endfunction
 
-" *** Expression Derived Values ***
+" *** Expression Flags ***
 function! s:Expression._hasflag(flag) abort
     return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
 endfunction
@@ -311,7 +315,20 @@ endfunction
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
 function! s:complete_buffers(value, ...) abort
-    return ["buffer1", "buffer2"]
+    " TODO implement string match algo
+    " - if number only and bufexists (so we can switch to deleted buffers) go straight to buffer
+    " - try case sensitive match first, then case insensitive
+    " - multiple words (sep by space) for increasing accuracy of match
+
+    " this algorithm will work on bufitems, but needs to return
+    " raw full/relataive path matches
+
+    " TODO an empty string doesn't seem to be providing any completion results
+    " when first loaded for the less version, but using the test list works
+    "   for some reason, buffercache is empty when loading form less
+    " echoerr s:buffercache
+    " return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.fullpath})
+    return ['buffer1' , 'buffer2']
 endfunction
 
 function! s:complete_aliases(value, ...) abort
@@ -440,4 +457,12 @@ command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
 
+" TODO single command QB (or QBuffer) that does both QBLess and QBPrompt
+" depending on if cmd args provided
 
+" testing only
+ca QBAA QBAliasAdd
+ca QBAR QBAliasRemove
+ca QBAL QBAliasList
+ca QBP QBPrompt
+command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
