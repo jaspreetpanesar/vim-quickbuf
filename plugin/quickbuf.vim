@@ -134,11 +134,11 @@ function! s:Expression._build(expr) abort
 
 endfunction
 
-function! s:Expression._complete(A, L, P) abort
-    " need to use A (not L) for command-completion to work correctly
+function! s:Expression._complete(value, ...) abort
+    " need to use [A]rgLead (not Cmd[L]ine) for command-completion to work correctly
     " as L will also include precending command before argument, eg.
     "   :QBLess test     <- A='test' L='QBLess test'
-    call self._build(a:A)
+    call self._build(a:value)
 
     " send character data to completion func
     " and map flags back into results
@@ -190,8 +190,6 @@ function! s:Expression.fetch(limit=-1) abort
 endfunction
 
 function! s:Expression.prompt() abort
-    " TODO does this work for normal vim? (workaround for assigning script
-    " file complete func in nvim not working)
     " https://github.com/neovim/neovim/issues/16301
     " the definition needs to be an existing ref rather than a new lambda in 
     " this one line as the gb-collector will immediatly destroy it
@@ -434,11 +432,12 @@ endfunction
 "--------------------------------------------------
 " (workaround) wrappers for assigning completion to prompt as dict
 " function cannot be referenced (not sure if possible)
-function! s:CompleteFuncWrapper(A, L, P)
-    return s:Expression._complete(a:A, a:L, a:P)
+function! s:CompleteFuncWrapper(value, ...)
+    call s:Expression.reset()
+    return s:Expression._complete(a:value)
 endfunction
 
-let s:CompleteFuncLambdaWrapper = {a,l,p -> s:Expression._complete(a,l,p)}
+let s:CompleteFuncLambdaWrapper = {a,... -> s:Expression._complete(a)}
 
 function! s:show_error(msg)
     " TODO after input() prompt, error is not on a newline
