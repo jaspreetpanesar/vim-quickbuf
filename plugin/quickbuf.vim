@@ -191,10 +191,7 @@ function! s:Expression.resolve() abort
     if self.can_multiselect()
         let selc = self.multiselect()
         if selc is v:null
-            " TODO this should be a different error? whats the point of
-            " throwing it here?
-            " should this request leave instead?
-            throw 'invalid-selection'
+            throw 'no-match'
         endif
     else
         " otherwise always return the top match
@@ -219,13 +216,11 @@ function! s:Expression.prompt() abort
 
     let self.data_prefill = ''
 
-    " throw exit requestd instead?
     if empty(expr)
-        let self.data_exitrequested = 1
-    else
-        let self.data_exitrequested = 0
-        call self._build(expr)
+        throw 'exit-requested'
     endif
+
+    call self._build(expr)
 
 endfunction
 
@@ -280,28 +275,24 @@ function! s:Expression.multiselect() abort
     call s:multiselect_showlist(blist, idlist)
     let selc = getcharstr()
 
-    " special values like  will return a null value rather than
-    " raise an selection error
-    "   matches escape or return
-    if match(selc, '\|\| ') > -1
-        " TODO throw exit-reqeuestd instead?
-        return v:null
+    " match escape
+    if match(selc, '') > -1
+        throw 'exit-requested'
     endif
 
     " then sanitise all non-printable charcters (\p) and whitespace
-    " (need to discard whole string when non-printables found as keys like
+    " (need to discard whole string when non-printables found, as keys like
     "  backspace <80>kb etc can also contain printables chars)
     let selc = match(selc, '[^[:print:]]\|\s') > -1 ? '' : selc
-
     if empty(selc)
-        throw 'no-selection'
+        throw 'invalid-selection-input'
     endif
 
+    " try match the request
     let idx = match(idlist, selc)
     if idx == -1
         let self.data_prefill = selc
-        " TODO return v:null instead?
-        throw 'invalid-selection'
+        return v:null
     endif
 
     " hides the message display helper (press key to continue) on
@@ -373,24 +364,29 @@ function! s:pub_prompt() abort
     call s:Expression.reset()
 
     while 1
-        call s:Expression.prompt()
 
         try
-            if !s:Expression.exit_requested()
-                let bnr = s:Expression.resolve()
+            call s:Expression.prompt()
+            let bnr = s:Expression.resolve()
+            if bnr isnot v:null
                 call s:switch_buffer(bnr, s:Expression.can_switchto())
+                return
             endif
-            return
 
+        catch /exit-requested/
+            break
         catch /no-matches-found/
-            call s:show_error('no matches found')
+            call s:show_error('could not find any matches')
         catch /buffer-not-exists/
-            call s:show_error('selected buffer could not be found')
-        catch /invalid-selection\|no-selection/
-            " do nothing, re-run prompt
+            call s:show_error('selected buffer could not be switched to')
+        catch /invalid-selection-input\|no-match/
+            " do nothing, re-runprompt
         endtry
 
     endwhile
+
+    redraw
+
 endfunction
 
 " *** Show filtered buffer list only ***
@@ -414,7 +410,10 @@ function! s:pub_less(expr) abort
         let bnr = s:Expression.resolve()
         call s:switch_buffer(bnr, s:Expression.can_switchto())
     catch /no-matches-found/
-        call s:show_error('no matches found')
+        call s:show_error('could not find any matches')
+    catch /no-match/
+        call s:show_error('invalid selection')
+    catch /exit-requested/
     endtry
 endfunction
 
@@ -499,3 +498,5 @@ ca QBAR QBAliasRemove
 ca QBAL QBAliasList
 ca QBP QBPrompt
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
+nnoremap <space><space> :Quick<cr>
+
