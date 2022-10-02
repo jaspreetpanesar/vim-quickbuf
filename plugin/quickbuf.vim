@@ -38,6 +38,7 @@ let s:buffercache = []
 let s:bufitem = {
 \ 'name': '',
 \ 'context': '',
+\ 'relpath': '',
 \ 'fullpath': '',
 \ 'bufnr': '',
 \ 'is_modified': 0,
@@ -79,6 +80,7 @@ function! s:bufitem._gen(binfo) abort
         let self.name = '#'.self.bufnr
    else
         let self.fullpath = path
+        let self.relpath = fnamemodify(path, ':.')
         let self.name = fnamemodify(path, ':t')
         let self.context = fnamemodify(path, ':h')
     endif
@@ -177,8 +179,19 @@ function! s:Expression._promptstr() abort
 endfunction
 
 function! s:Expression._convert2bufnr(value) abort
-    return bufnr()
-    throw 'buffer-not-exists'
+    if self.data_selectionmode == 0
+        let bfnr = bufnr(a:value)
+    elseif self.data_selectionmode == 1
+        let bfnr = bufnr( s:aliases[a:value] )
+    elseif self.data_selectionmode == 2
+        let bfnr = bufnr(a:value)
+    endif
+
+    if bfnr <= 0
+        throw 'buffer-not-exists'
+    endif
+    return bfnr
+
 endfunction
 
 function! s:Expression.resolve() abort
@@ -340,7 +353,9 @@ function! s:complete_buffers(value, ...) abort
 
     " this algorithm will work on bufitems, but needs to return
     " raw full/relataive path matches
-    return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.fullpath})
+
+    return getcompletion(a:value, 'buffer')
+    return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.relpath})
 endfunction
 
 function! s:complete_aliases(value, ...) abort
@@ -348,7 +363,8 @@ function! s:complete_aliases(value, ...) abort
 endfunction
 
 function! s:complete_arglist(value, ...) abort
-    return ["arg1", "arg2"]
+    let aglist = copy(argv())
+    return filter(aglist, 'v:val =~ "^' . a:value . '"')
 endfunction
 
 " used for expression selection mode
