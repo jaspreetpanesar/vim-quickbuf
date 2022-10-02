@@ -177,6 +177,7 @@ function! s:Expression._promptstr() abort
 endfunction
 
 function! s:Expression._convert2bufnr(value) abort
+    return bufnr()
     throw 'buffer-not-exists'
 endfunction
 
@@ -190,6 +191,9 @@ function! s:Expression.resolve() abort
     if self.can_multiselect()
         let selc = self.multiselect()
         if selc is v:null
+            " TODO this should be a different error? whats the point of
+            " throwing it here?
+            " should this request leave instead?
             throw 'invalid-selection'
         endif
     else
@@ -215,6 +219,7 @@ function! s:Expression.prompt() abort
 
     let self.data_prefill = ''
 
+    " throw exit requestd instead?
     if empty(expr)
         let self.data_exitrequested = 1
     else
@@ -270,32 +275,32 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    let blist = self.fetch(9)
+    let blist = self.fetch( len(s:msw_selection_vals) )
     let idlist = map(copy(blist), {i -> s:msw_selection_vals[i]})
     call s:multiselect_showlist(blist, idlist)
-    let sel = getcharstr()
+    let selc = getcharstr()
 
     " special values like  will return a null value rather than
     " raise an selection error
-    if match(sel, '\|\| ') >= 0
+    "   matches escape or return
+    if match(selc, '\|\| ') > -1
+        " TODO throw exit-reqeuestd instead?
         return v:null
     endif
 
-    " TODO we shouldn't just santisize everything because then we can't
-    " enter new flag on the prefil if they were entered (might need to 
-    " rework this and what inputs should be allowed)
+    " then sanitise all non-printable charcters (\p) and whitespace
+    " (need to discard whole string when non-printables found as keys like
+    "  backspace <80>kb etc can also contain printables chars)
+    let selc = match(selc, '[^[:print:]]\|\s') > -1 ? '' : selc
 
-    " and sanitise values we don't need
-    let sel_st = substitute(sel, '[^a-zA-Z0-9]', '', 'g')
-
-    " TODO is this ever thrown??
-    if empty(sel)
+    if empty(selc)
         throw 'no-selection'
     endif
 
-    let idx = match(idlist, sel_st)
+    let idx = match(idlist, selc)
     if idx == -1
-        let self.data_prefill = sel
+        let self.data_prefill = selc
+        " TODO return v:null instead?
         throw 'invalid-selection'
     endif
 
@@ -381,7 +386,7 @@ function! s:pub_prompt() abort
             call s:show_error('no matches found')
         catch /buffer-not-exists/
             call s:show_error('selected buffer could not be found')
-        catch /invalid-selection/
+        catch /invalid-selection\|no-selection/
             " do nothing, re-run prompt
         endtry
 
