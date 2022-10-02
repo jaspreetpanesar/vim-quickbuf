@@ -130,9 +130,9 @@ function! s:Expression._build(expr) abort
         return
     endif
 
-    " limit filename character scope to alphanumeric and _-%. and path
-    " characters (slashes, and :)
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:]\+')
+    " limit filename character scope to alphanumeric, some filesafe
+    " chars and standardd path characters
+    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:~]\+')
     let self.inputchars = pos[0]
     if pos[1] > -1
         let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
@@ -167,8 +167,10 @@ function! s:Expression._match() abort
     " it stores it now) or generate it if its out of date (ie. prompt expr
     " is not the same as the cached/stored version)
 
-    let sm = self.flag_usealiases() ? 1 : self.flag_usearglist() ? 2 : 0
+    let sm = self.flag_usealiases() ? 1 : self.flag_usearglist() ? 2 : self.is_number() ? 3 : 0
     let self.data_selectionmode = sm
+    " TODO store results as list here rather than enforcing autocomplete funcs
+    " to return lists
     let self.data_results = s:complete_func_refs[sm](self.inputchars)
 
 endfunction
@@ -179,12 +181,18 @@ function! s:Expression._promptstr() abort
 endfunction
 
 function! s:Expression._convert2bufnr(value) abort
-    if self.data_selectionmode == 0
+    if self.data_selectionmode == s:e_selection_mode.filepath
         let bfnr = bufnr(a:value)
-    elseif self.data_selectionmode == 1
+
+    elseif self.data_selectionmode == s:e_selection_mode.aliases
         let bfnr = bufnr( s:aliases[a:value] )
-    elseif self.data_selectionmode == 2
+
+    elseif self.data_selectionmode == s:e_selection_mode.arglist
         let bfnr = bufnr(a:value)
+
+    elseif self.data_selectionmode == s:e_selection_mode.bufnr
+        let bfnr = str2nr(a:value)
+
     endif
 
     if bfnr <= 0
@@ -258,6 +266,10 @@ function! s:Expression.is_empty() abort
     return empty(self.inputchars)
 endfunction
 
+function! s:Expression.is_number() abort
+    return match(self.inputchars, '^\d\+$') > -1
+endfunction
+
 " *** Expression Flags ***
 function! s:Expression._hasflag(flag) abort
     return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
@@ -277,6 +289,11 @@ endfunction
 
 function! s:Expression.flag_multiselect() abort
     return self._hasflag('?')
+endfunction
+
+" TODO rename these to 'hasflag_'
+function! s:Expression.flag_bang() abort
+    return self._hasflag('!')
 endfunction
 
 "--------------------------------------------------
@@ -314,7 +331,6 @@ function! s:Expression.multiselect() abort
     return blist[idx]
 
 endfunction
-"--------------------------------------------------
 
 "--------------------------------------------------
 "   *** Multiselect Display ***
@@ -345,9 +361,9 @@ endfunction
 "--------------------------------------------------
 "   *** Autocomplete Functions ***
 "--------------------------------------------------
+" TODO rename complete prefix to matchfor or something
 function! s:complete_buffers(value, ...) abort
     " TODO implement string match algo
-    " - if number only and bufexists (so we can switch to deleted buffers) go straight to buffer
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
 
@@ -367,10 +383,26 @@ function! s:complete_arglist(value, ...) abort
     return filter(aglist, 'v:val =~ "^' . a:value . '"')
 endfunction
 
+function! s:complete_buffernumber(value, ...) abort
+    " use bang flag to match hidden/deleted buffers
+    let FuncRef = s:Expression.flag_bang() ? function('bufexists') : function('buflisted')
+    return FuncRef(str2nr(a:value)) ? [a:value] : []
+endfunction
+
+" TODO where to define this?
+" TODO rename buffer completion to filepath completion
+let s:e_selection_mode = {
+    \ 'filepath' : 0,
+    \ 'aliases'  : 1,
+    \ 'arglist'  : 2,
+    \ 'bufnr'    : 3,
+    \ }
+
 " used for expression selection mode
 let s:complete_func_refs = [function('s:complete_buffers'),
                           \ function('s:complete_aliases'),
-                          \ function('s:complete_arglist')]
+                          \ function('s:complete_arglist'),
+                          \ function('s:complete_buffernumber')]
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
@@ -380,7 +412,6 @@ function! s:pub_prompt() abort
     call s:Expression.reset()
 
     while 1
-
         try
             call s:Expression.prompt()
             let bnr = s:Expression.resolve()
@@ -398,7 +429,6 @@ function! s:pub_prompt() abort
         catch /invalid-selection-input\|no-match/
             " do nothing, re-runprompt
         endtry
-
     endwhile
 
     redraw
