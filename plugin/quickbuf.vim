@@ -176,16 +176,8 @@ function! s:Expression._promptstr() abort
     return '>> '
 endfunction
 
-function! s:Expression._buffer2bnr(path) abort
-    return bufnr(a:path)
-endfunction
-
-function! s:Expression._alias2bnr(alias) abort
-    return get(s:aliases, a:alias, v:null)
-endfunction
-
-function! s:Expression._arg2bnr(path) abort
-    return bufnr(a:path)
+function! s:Expression._convert2bufnr(value) abort
+    throw 'buffer-not-exists'
 endfunction
 
 function! s:Expression.resolve() abort
@@ -196,15 +188,16 @@ function! s:Expression.resolve() abort
     endif
 
     if self.can_multiselect()
-        let sel = self.multiselect()
-        if sel is v:null
+        let selc = self.multiselect()
+        if selc is v:null
             throw 'invalid-selection'
         endif
-        return sel
+    else
+        " otherwise always return the top match
+        let selc = self.data_results[0]
     endif
 
-    " otherwise always return the top match
-    return self.data_results[0]
+    return self._convert2bufnr(selc)
 
 endfunction
 
@@ -386,6 +379,8 @@ function! s:pub_prompt() abort
 
         catch /no-matches-found/
             call s:show_error('no matches found')
+        catch /buffer-not-exists/
+            call s:show_error('selected buffer could not be found')
         catch /invalid-selection/
             " do nothing, re-run prompt
         endtry
@@ -475,9 +470,8 @@ endfunction
 let s:CompleteFuncLambdaWrapper = {a,... -> s:CompleteFuncWrapper(a)}
 
 function! s:show_error(msg)
-    " TODO after input() prompt, error is not on a newline
     echohl Error
-    echo a:msg
+    echo "\n".a:msg
     echohl None
 endfunction
 
