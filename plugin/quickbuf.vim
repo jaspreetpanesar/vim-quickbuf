@@ -103,6 +103,11 @@ endfunction
 "--------------------------------------------------
 let s:Expression = {}
 
+" * Selection Mode Enum *
+"   0 = buffer
+"   1 = alias
+"   2 = arglist
+
 function! s:Expression.reset() abort
     let self.input = ''
     let self.inputchars = ''
@@ -110,6 +115,7 @@ function! s:Expression.reset() abort
     let self.data_prefill = ''
     let self.data_results = []
     let self.data_exitrequested = 0
+    let self.data_selectionmode = 0
 endfunction
 
 " needed to setup object properties
@@ -159,17 +165,27 @@ function! s:Expression._match() abort
     " it stores it now) or generate it if its out of date (ie. prompt expr
     " is not the same as the cached/stored version)
 
-    let FuncRef = self.flag_usealiases() ? function('s:complete_aliases') : 
-                \ self.flag_usearglist() ?  function('s:complete_arglist') : 
-                \ function('s:complete_buffers')
-
-    let self.data_results = FuncRef(self.inputchars)
+    let sm = self.flag_usealiases() ? 1 : self.flag_usearglist() ? 2 : 0
+    let self.data_selectionmode = sm
+    let self.data_results = s:complete_func_refs[sm](self.inputchars)
 
 endfunction
 
 function! s:Expression._promptstr() abort
     " TODO use global switches to generate
     return '>> '
+endfunction
+
+function! s:Expression._buffer2bnr(path) abort
+    return bufnr(a:path)
+endfunction
+
+function! s:Expression._alias2bnr(alias) abort
+    return get(s:aliases, a:alias, v:null)
+endfunction
+
+function! s:Expression._arg2bnr(path) abort
+    return bufnr(a:path)
 endfunction
 
 function! s:Expression.resolve() abort
@@ -296,6 +312,7 @@ function! s:Expression.multiselect() abort
     return blist[idx]
 
 endfunction
+"--------------------------------------------------
 
 "--------------------------------------------------
 "   *** Multiselect Display ***
@@ -345,6 +362,11 @@ function! s:complete_arglist(value, ...) abort
     return ["arg1", "arg2"]
 endfunction
 
+" used for expression selection mode
+let s:complete_func_refs = [function('s:complete_buffers'),
+                          \ function('s:complete_aliases'),
+                          \ function('s:complete_arglist')]
+
 "--------------------------------------------------
 "   *** Plugin Interaction ***
 "--------------------------------------------------
@@ -357,8 +379,8 @@ function! s:pub_prompt() abort
 
         try
             if !s:Expression.exit_requested()
-                let path = s:Expression.resolve()
-                call s:switch_buffer(path, s:Expression.can_switchto())
+                let bnr = s:Expression.resolve()
+                call s:switch_buffer(bnr, s:Expression.can_switchto())
             endif
             return
 
@@ -389,8 +411,8 @@ function! s:pub_less(expr) abort
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
     try
-        let path = s:Expression.resolve()
-        call s:switch_buffer(path, s:Expression.can_switchto())
+        let bnr = s:Expression.resolve()
+        call s:switch_buffer(bnr, s:Expression.can_switchto())
     catch /no-matches-found/
         call s:show_error('no matches found')
     endtry
@@ -399,16 +421,16 @@ endfunction
 "--------------------------------------------------
 "   *** Goto Buffer ***
 "--------------------------------------------------
-function! s:switch_buffer(path, switchto=0) abort
+function! s:switch_buffer(bnr, switchto=0) abort
     if a:switchto
         let save = &switchbuf
         let &switchbuf = 'useopen,usetab'
     endif
     " might not need this try-catch
     try
-        exec (a:switchto ? 's' : '') . 'buffer ' . a:path
+        exec (a:switchto ? 's' : '') . 'buffer ' . a:bnr
     catch /E94/
-        echoerr 'could not switch to buffer ' . a:path
+        echoerr 'could not switch to buffer ' . a:bnr
 
     finally
         if a:switchto
