@@ -286,34 +286,32 @@ function! s:Expression.is_number() abort
 endfunction
 
 " *** Expression Flags ***
-" TODO convert to _flagmatch and take regex expr to allow for more complex flag
-" requirements
-function! s:Expression._hasflag(flag) abort
-    return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
+function! s:Expression._flagmatch(expr) abort
+    return match(self.inputflags[0] . self.inputflags[1], a:expr) > -1
 endfunction
 
 function! s:Expression.hasflag_usealiases() abort
-    return self._hasflag('#')
+    return self._flagmatch('#')
 endfunction
 
 function! s:Expression.hasflag_usearglist() abort
-    return self._hasflag('\$')
+    return self._flagmatch('\$')
 endfunction
 
 function! s:Expression.hasflag_windowtoggle() abort
-    return self._hasflag('@')
+    return self._flagmatch('@')
 endfunction
 
 function! s:Expression.hasflag_multiselect() abort
-    return self._hasflag('?')
+    return self._flagmatch('?')
 endfunction
 
 function! s:Expression.hasflag_bang() abort
-    return self._hasflag('!')
+    return self._flagmatch('!')
 endfunction
 
 function! s:Expression.hasflag_usenoname() abort
-    return self._hasflag('!!')
+    return self._flagmatch('!!')
 endfunction
 
 "--------------------------------------------------
