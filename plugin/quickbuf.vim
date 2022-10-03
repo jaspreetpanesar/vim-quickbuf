@@ -309,7 +309,7 @@ endfunction
 function! s:Expression.multiselect() abort
     let blist = self.fetch( len(s:msw_selection_vals) )
     let idlist = map(copy(blist), {i -> s:msw_selection_vals[i]})
-    call s:multiselect_showlist(blist, idlist)
+    call s:multiselect_showlist(blist, idlist, [])
     let selc = getcharstr()
 
     " match escape
@@ -342,18 +342,18 @@ endfunction
 "--------------------------------------------------
 "   *** Multiselect Display ***
 "--------------------------------------------------
-function! s:multiselect_showlist(rows, ids) abort
+function! s:multiselect_showlist(rowvals, rowids, rowctxs) abort
     " TODO support for neat-list
     " if exists('loaded_neatlist') else use generic
-    call s:multiselect_showlist_generic(a:rows, a:ids)
+    call s:multiselect_showlist_generic(a:rowvals, a:rowids)
 endfunction
 
-function! s:multiselect_showlist_generic(rows, ids) abort
+function! s:multiselect_showlist_generic(rowvals, rowids) abort
     echo "\n"
     let idx = 0
-    let idlast = len(a:rows)
+    let idlast = len(a:rowvals)
     while idx < idlast
-        call s:multiselect_showrow_generic(a:ids[idx], a:rows[idx])
+        call s:multiselect_showrow_generic(a:rowvals[idx], a:rowids[idx])
         let idx += 1
     endwhile
 endfunction
@@ -361,8 +361,8 @@ endfunction
 " @param records = bufitem
 " @param id = value to show before item
 " uses generic str value display so any list of str can be multiselected
-function! s:multiselect_showrow_generic(id, row) abort
-    echo '[' . a:id . '] ' . a:row
+function! s:multiselect_showrow_generic(val, id) abort
+    echo '[' . a:id . '] ' . a:val
 endfunction
 
 "--------------------------------------------------
