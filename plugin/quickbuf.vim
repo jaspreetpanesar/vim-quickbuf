@@ -307,9 +307,10 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    let blist = self.fetch( len(s:msw_selection_vals) )
-    let idlist = map(copy(blist), {i -> s:msw_selection_vals[i]})
-    call s:multiselect_showlist(blist, idlist, [])
+    let bflist = self.fetch( len(s:msw_selection_vals) )
+    let idlist = map(copy(bflist), {i -> s:msw_selection_vals[i]})
+    let ctxlist = map(copy(bflist), {_-> v:null})
+    call s:multiselect_showlist(bflist, idlist, ctxlist)
     let selc = getcharstr()
 
     " match escape
@@ -335,7 +336,7 @@ function! s:Expression.multiselect() abort
     " hides the message display helper (press key to continue) on
     " successful selection
     redraw
-    return blist[idx]
+    return bflist[idx]
 
 endfunction
 
@@ -345,15 +346,15 @@ endfunction
 function! s:multiselect_showlist(rowvals, rowids, rowctxs) abort
     " TODO support for neat-list
     " if exists('loaded_neatlist') else use generic
-    call s:multiselect_showlist_generic(a:rowvals, a:rowids)
+    call s:multiselect_showlist_generic(a:rowvals, a:rowids, a:rowctxs)
 endfunction
 
-function! s:multiselect_showlist_generic(rowvals, rowids) abort
+function! s:multiselect_showlist_generic(rowvals, rowids, rowctxs) abort
     echo "\n"
     let idx = 0
     let idlast = len(a:rowvals)
     while idx < idlast
-        call s:multiselect_showrow_generic(a:rowvals[idx], a:rowids[idx])
+        call s:multiselect_showrow_generic(a:rowvals[idx], a:rowids[idx], a:rowctxs[idx])
         let idx += 1
     endwhile
 endfunction
@@ -361,8 +362,8 @@ endfunction
 " @param records = bufitem
 " @param id = value to show before item
 " uses generic str value display so any list of str can be multiselected
-function! s:multiselect_showrow_generic(val, id) abort
-    echo '[' . a:id . '] ' . a:val
+function! s:multiselect_showrow_generic(val, id, ctx) abort
+    echo '[' . a:id . '] ' . a:val . (empty(a:ctx) ? '' : ' : ' . a:ctx)
 endfunction
 
 "--------------------------------------------------
