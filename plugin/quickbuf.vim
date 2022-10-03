@@ -376,8 +376,11 @@ function! s:matchfor_buffers(value, ...) abort
     " this algorithm will work on bufitems, but needs to return
     " raw full/relataive path matches
 
-    return getcompletion(a:value, 'buffer')
-    return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.relpath})
+    " using normal vim completion while match algo is wip
+    let rs = getcompletion(a:value, 'buffer')
+    let mybufnr = bufnr()
+    call filter(rs, {_,val -> bufnr(val) != mybufnr})
+    return rs
 endfunction
 
 function! s:matchfor_aliases(value, ...) abort
@@ -399,7 +402,8 @@ function! s:matchfor_nonamebufs(value, ...) abort
     " TODO match value in the buffer itself using getbufline()
 
     let nonamebufs = getbufinfo({'buflisted':1})
-    call filter(nonamebufs, {_,val -> empty(val.name)})
+    let mybufnr = bufnr()
+    call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
     call map(nonamebufs, {_,val -> val.bufnr})
 
     if empty(a:value)
