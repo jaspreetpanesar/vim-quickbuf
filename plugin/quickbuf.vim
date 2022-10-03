@@ -400,6 +400,8 @@ endfunction
 
 function! s:matchfor_nonamebufs(value, ...) abort
     " TODO match value in the buffer itself using getbufline()
+    " some sort of optimisation/caching needed before implementing this so that we
+    " don't have to run the matches more than once when possible
 
     let nonamebufs = getbufinfo({'buflisted':1})
     let mybufnr = bufnr()
