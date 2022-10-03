@@ -167,12 +167,11 @@ function! s:Expression._match() abort
     " it stores it now) or generate it if its out of date (ie. prompt expr
     " is not the same as the cached/stored version)
 
-    let sm = self.hasflag_usealiases() ? 1 : self.hasflag_usearglist() ? 2 : self.is_number() ? 3 : 0
+    let sm = self.hasflag_usealiases() ? 1 : self.hasflag_usearglist() ? 2 : self.hasflag_usenoname() ? 4 : self.is_number() ? 3 : 0
+    let rs = s:matchfor_func_refs[sm](self.inputchars)
     let self.data_selectionmode = sm
-    " TODO store results as list here rather than enforcing autocomplete funcs
-    " to return lists
-    let self.data_results = s:matchfor_func_refs[sm](self.inputchars)
-
+    " make sure resultset is always in a list not a single value
+    let self.data_results = type(rs) == v:t_list ? rs : [rs]
 endfunction
 
 function! s:Expression._promptstr() abort
@@ -191,6 +190,9 @@ function! s:Expression._convert2bufnr(value) abort
         let bfnr = bufnr(a:value)
 
     elseif self.data_selectionmode == s:e_selection_mode.bufnr
+        let bfnr = str2nr(a:value)
+
+    elseif self.data_selectionmode == s:e_selection_mode.noname
         let bfnr = str2nr(a:value)
 
     endif
@@ -271,6 +273,8 @@ function! s:Expression.is_number() abort
 endfunction
 
 " *** Expression Flags ***
+" TODO convert to _flagmatch and take regex expr to allow for more complex flag
+" requirements
 function! s:Expression._hasflag(flag) abort
     return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
 endfunction
@@ -293,6 +297,10 @@ endfunction
 
 function! s:Expression.hasflag_bang() abort
     return self._hasflag('!')
+endfunction
+
+function! s:Expression.hasflag_usenoname() abort
+    return self._hasflag('!!')
 endfunction
 
 "--------------------------------------------------
@@ -384,7 +392,22 @@ endfunction
 function! s:matchfor_buffernumber(value, ...) abort
     " use bang flag to match hidden/deleted buffers
     let FuncRef = s:Expression.hasflag_bang() ? function('bufexists') : function('buflisted')
-    return FuncRef(str2nr(a:value)) ? [a:value] : []
+    return FuncRef(str2nr(a:value)) ? a:value : []
+endfunction
+
+function! s:matchfor_nonamebufs(value, ...) abort
+    " TODO match value in the buffer itself using getbufline()
+
+    let nonamebufs = getbufinfo({'buflisted':1})
+    call filter(nonamebufs, {_,val -> empty(val.name)})
+    call map(nonamebufs, {_,val -> val.bufnr})
+
+    if empty(a:value)
+        return nonamebufs
+    else
+        return match(nonamebufs, str2nr(a:value)) > -1 ? a:value : []
+    endif
+
 endfunction
 
 " TODO where to define this?
@@ -394,13 +417,15 @@ let s:e_selection_mode = {
     \ 'aliases'  : 1,
     \ 'arglist'  : 2,
     \ 'bufnr'    : 3,
+    \ 'noname'   : 4,
     \ }
 
 " used for expression selection mode
 let s:matchfor_func_refs = [function('s:matchfor_buffers'),
                           \ function('s:matchfor_aliases'),
                           \ function('s:matchfor_arglist'),
-                          \ function('s:matchfor_buffernumber')]
+                          \ function('s:matchfor_buffernumber'),
+                          \ function('s:matchfor_nonamebufs')]
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
