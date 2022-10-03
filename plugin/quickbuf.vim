@@ -171,7 +171,7 @@ function! s:Expression._match() abort
     let self.data_selectionmode = sm
     " TODO store results as list here rather than enforcing autocomplete funcs
     " to return lists
-    let self.data_results = s:complete_func_refs[sm](self.inputchars)
+    let self.data_results = s:matchfor_func_refs[sm](self.inputchars)
 
 endfunction
 
@@ -358,10 +358,9 @@ function! s:multiselect_showrow_generic(id, row) abort
 endfunction
 
 "--------------------------------------------------
-"   *** Autocomplete Functions ***
+"   *** String Matching Functions ***
 "--------------------------------------------------
-" TODO rename complete prefix to matchfor or something
-function! s:complete_buffers(value, ...) abort
+function! s:matchfor_buffers(value, ...) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
@@ -373,16 +372,16 @@ function! s:complete_buffers(value, ...) abort
     return map(filter(copy(s:buffercache), {i, item -> !item.is_noname}), {i, item -> item.relpath})
 endfunction
 
-function! s:complete_aliases(value, ...) abort
+function! s:matchfor_aliases(value, ...) abort
     return filter(keys(s:aliases), 'v:val =~ "^' . a:value .'"')
 endfunction
 
-function! s:complete_arglist(value, ...) abort
+function! s:matchfor_arglist(value, ...) abort
     let aglist = copy(argv())
     return filter(aglist, 'v:val =~ "^' . a:value . '"')
 endfunction
 
-function! s:complete_buffernumber(value, ...) abort
+function! s:matchfor_buffernumber(value, ...) abort
     " use bang flag to match hidden/deleted buffers
     let FuncRef = s:Expression.hasflag_bang() ? function('bufexists') : function('buflisted')
     return FuncRef(str2nr(a:value)) ? [a:value] : []
@@ -398,10 +397,10 @@ let s:e_selection_mode = {
     \ }
 
 " used for expression selection mode
-let s:complete_func_refs = [function('s:complete_buffers'),
-                          \ function('s:complete_aliases'),
-                          \ function('s:complete_arglist'),
-                          \ function('s:complete_buffernumber')]
+let s:matchfor_func_refs = [function('s:matchfor_buffers'),
+                          \ function('s:matchfor_aliases'),
+                          \ function('s:matchfor_arglist'),
+                          \ function('s:matchfor_buffernumber')]
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
@@ -529,7 +528,7 @@ endfunction
 "--------------------------------------------------
 command! QBAliasList echo s:aliases
 command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
-command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
+command! -nargs=1 -complete=customlist,s:matchfor_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
