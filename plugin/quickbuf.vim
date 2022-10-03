@@ -14,8 +14,16 @@ let g:loaded_quickbuf = 1
 "   *** CONSTANTS ***
 "--------------------------------------------------
 " selection vals fallback
-let s:c_mselvals = '1234abcdef' " TODO make configurable
+let s:c_mselvals = '1234abcdef'
 let s:c_mselmax = 10
+
+let s:enum_selectionmode = {
+    \ 'filepath' : 0,
+    \ 'aliases'  : 1,
+    \ 'arglist'  : 2,
+    \ 'bufnr'    : 3,
+    \ 'noname'   : 4,
+    \ }
 
 "--------------------------------------------------
 "   *** CONFIGURATION ***
@@ -167,7 +175,12 @@ function! s:Expression._match() abort
     " it stores it now) or generate it if its out of date (ie. prompt expr
     " is not the same as the cached/stored version)
 
-    let sm = self.hasflag_usealiases() ? 1 : self.hasflag_usearglist() ? 2 : self.hasflag_usenoname() ? 4 : self.is_number() ? 3 : 0
+    let sm = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
+         \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
+         \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
+         \ : self.is_number() ? s:enum_selectionmode.bufnr
+         \ : s:enum_selectionmode.filepath
+
     let rs = s:matchfor_func_refs[sm](self.inputchars)
     let self.data_selectionmode = sm
     " make sure resultset is always in a list not a single value
@@ -180,19 +193,19 @@ function! s:Expression._promptstr() abort
 endfunction
 
 function! s:Expression._convert2bufnr(value) abort
-    if self.data_selectionmode == s:e_selection_mode.filepath
+    if self.data_selectionmode == s:enum_selectionmode.filepath
         let bfnr = bufnr(a:value)
 
-    elseif self.data_selectionmode == s:e_selection_mode.aliases
+    elseif self.data_selectionmode == s:enum_selectionmode.aliases
         let bfnr = bufnr( s:aliases[a:value] )
 
-    elseif self.data_selectionmode == s:e_selection_mode.arglist
+    elseif self.data_selectionmode == s:enum_selectionmode.arglist
         let bfnr = bufnr(a:value)
 
-    elseif self.data_selectionmode == s:e_selection_mode.bufnr
+    elseif self.data_selectionmode == s:enum_selectionmode.bufnr
         let bfnr = str2nr(a:value)
 
-    elseif self.data_selectionmode == s:e_selection_mode.noname
+    elseif self.data_selectionmode == s:enum_selectionmode.noname
         let bfnr = str2nr(a:value)
 
     endif
@@ -369,7 +382,7 @@ endfunction
 "--------------------------------------------------
 "   *** String Matching Functions ***
 "--------------------------------------------------
-function! s:matchfor_buffers(value, ...) abort
+function! s:matchfor_filepath(value, ...) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
@@ -417,22 +430,14 @@ function! s:matchfor_nonamebufs(value, ...) abort
 
 endfunction
 
-" TODO where to define this?
-" TODO rename buffer completion to filepath completion
-let s:e_selection_mode = {
-    \ 'filepath' : 0,
-    \ 'aliases'  : 1,
-    \ 'arglist'  : 2,
-    \ 'bufnr'    : 3,
-    \ 'noname'   : 4,
-    \ }
-
-" used for expression selection mode
-let s:matchfor_func_refs = [function('s:matchfor_buffers'),
-                          \ function('s:matchfor_aliases'),
-                          \ function('s:matchfor_arglist'),
-                          \ function('s:matchfor_buffernumber'),
-                          \ function('s:matchfor_nonamebufs')]
+" order as per enum_selectionmode
+let s:matchfor_func_refs = [
+    \ function('s:matchfor_filepath'),
+    \ function('s:matchfor_aliases'),
+    \ function('s:matchfor_arglist'),
+    \ function('s:matchfor_buffernumber'),
+    \ function('s:matchfor_nonamebufs')
+    \ ]
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
