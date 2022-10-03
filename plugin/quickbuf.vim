@@ -113,11 +113,6 @@ endfunction
 "--------------------------------------------------
 let s:Expression = {}
 
-" * Selection Mode Enum *
-"   0 = buffer
-"   1 = alias
-"   2 = arglist
-
 function! s:Expression.reset() abort
     let self.input = ''
     let self.inputchars = ''
@@ -137,6 +132,11 @@ function! s:Expression._build(expr) abort
     if empty(a:expr)
         return
     endif
+
+    " TODO support for quoted text- so if start end end quotes with text in
+    " between is found, then use that as inputchar
+    " ie. anything inside start/end quotes will not be seen as a flag
+    "   eg. ^"^~/home$"? where 1st ^ is a flag, but 2nd is not
 
     " limit filename character scope to alphanumeric, some filesafe
     " chars and standardd path characters
@@ -313,6 +313,11 @@ endfunction
 function! s:Expression.hasflag_usenoname() abort
     return self._flagmatch('!!')
 endfunction
+
+" TODO '^' flag to use vim's buffer compeletion (to support regex support when
+" needed)
+" TODO '??' flag to not remove current buffer from results (multiselect still
+" active)
 
 "--------------------------------------------------
 "   *** Expression Engine : Multiselection ***
