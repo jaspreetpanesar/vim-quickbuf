@@ -167,7 +167,7 @@ function! s:Expression._match() abort
     " it stores it now) or generate it if its out of date (ie. prompt expr
     " is not the same as the cached/stored version)
 
-    let sm = self.flag_usealiases() ? 1 : self.flag_usearglist() ? 2 : self.is_number() ? 3 : 0
+    let sm = self.hasflag_usealiases() ? 1 : self.hasflag_usearglist() ? 2 : self.is_number() ? 3 : 0
     let self.data_selectionmode = sm
     " TODO store results as list here rather than enforcing autocomplete funcs
     " to return lists
@@ -251,11 +251,11 @@ endfunction
 
 " *** Expression Controls ***
 function! s:Expression.can_switchto() abort
-    return (s:switch_windowtoggle ? !s:switch_windowtoggle : self.flag_windowtoggle())
+    return (s:switch_windowtoggle ? !s:switch_windowtoggle : self.hasflag_windowtoggle())
 endfunction
 
 function! s:Expression.can_multiselect() abort
-    return (s:switch_multiselect ? !s:switch_multiselect : self.flag_multiselect())
+    return (s:switch_multiselect ? !s:switch_multiselect : self.hasflag_multiselect())
 endfunction
 
 function! s:Expression.exit_requested() abort
@@ -275,24 +275,23 @@ function! s:Expression._hasflag(flag) abort
     return match(self.inputflags[0] . self.inputflags[1], a:flag) > -1
 endfunction
 
-function! s:Expression.flag_usealiases() abort
+function! s:Expression.hasflag_usealiases() abort
     return self._hasflag('#')
 endfunction
 
-function! s:Expression.flag_usearglist() abort
+function! s:Expression.hasflag_usearglist() abort
     return self._hasflag('\$')
 endfunction
 
-function! s:Expression.flag_windowtoggle() abort
+function! s:Expression.hasflag_windowtoggle() abort
     return self._hasflag('@')
 endfunction
 
-function! s:Expression.flag_multiselect() abort
+function! s:Expression.hasflag_multiselect() abort
     return self._hasflag('?')
 endfunction
 
-" TODO rename these to 'hasflag_'
-function! s:Expression.flag_bang() abort
+function! s:Expression.hasflag_bang() abort
     return self._hasflag('!')
 endfunction
 
@@ -385,7 +384,7 @@ endfunction
 
 function! s:complete_buffernumber(value, ...) abort
     " use bang flag to match hidden/deleted buffers
-    let FuncRef = s:Expression.flag_bang() ? function('bufexists') : function('buflisted')
+    let FuncRef = s:Expression.hasflag_bang() ? function('bufexists') : function('buflisted')
     return FuncRef(str2nr(a:value)) ? [a:value] : []
 endfunction
 
