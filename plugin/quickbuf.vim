@@ -188,7 +188,8 @@ function! s:Expression._match() abort
          \ : s:enum_selectionmode.filepath
 
     let rs = s:matchfor_func_refs[sm](self.inputchars, {
-        \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer()
+        \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
+        \ 'includedeletedbuffer': self.hasflag_bang(),
         \ })
     let self.data_selectionmode = sm
     " make sure resultset is always in a list not a single value
@@ -421,8 +422,7 @@ function! s:matchfor_arglist(value, opts={}) abort
 endfunction
 
 function! s:matchfor_buffernumber(value, opts={}) abort
-    " use bang flag to match hidden/deleted buffers
-    let FuncRef = s:Expression.hasflag_bang() ? function('bufexists') : function('buflisted')
+    let FuncRef = a:opts->get('includedeletedbuffer', 0) ? function('bufexists') : function('buflisted')
     return FuncRef(str2nr(a:value)) ? a:value : []
 endfunction
 
