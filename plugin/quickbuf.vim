@@ -399,6 +399,11 @@ endfunction
 " filepath and arglist
 " matching can be fixed with substituting \\ with \\\\ but might need to do
 " this globally for input expression?
+"
+" a workaround might be to set shellslash while doing the string match and 
+" translating any input back slashes to forward slashes and reset setting on 
+" complete
+" ---
 
 function! s:matchfor_filepath(value, opts={}) abort
     " TODO implement string match algo
@@ -423,7 +428,8 @@ endfunction
 
 function! s:matchfor_arglist(value, opts={}) abort
     let aglist = copy(argv())
-    return filter(aglist, 'v:val =~ "^' . a:value . '"')
+    let value = s:forwardslash(a:value)
+    return filter(aglist, {_,arg -> match(s:forwardslash(arg), value) > -1})
 endfunction
 
 function! s:matchfor_buffernumber(value, opts={}) abort
@@ -579,6 +585,10 @@ function! s:show_error(msg)
     echohl Error
     echo "\n".a:msg
     echohl None
+endfunction
+
+function! s:forwardslash(path)
+    return substitute(a:path, '\', '/', 'g')
 endfunction
 
 function! s:debug(...)
