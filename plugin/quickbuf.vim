@@ -257,7 +257,6 @@ function! s:Expression.prompt() abort
     " the definition needs to be an existing ref rather than a new lambda in 
     " this one line as the gb-collector will immediatly destroy it
     let expr = input(self._promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
-
     let self.data_prefill = ''
 
     if empty(expr)
@@ -374,16 +373,12 @@ endfunction
 "   *** Multiselect Display ***
 "--------------------------------------------------
 function! s:multiselect_showlist(rowvals, rowids, rowctxs) abort
-    " TODO support for neat-list
-    " if exists('loaded_neatlist') else use generic
-    call s:multiselect_showlist_generic(a:rowvals, a:rowids, a:rowctxs)
-endfunction
-
-function! s:multiselect_showlist_generic(rowvals, rowids, rowctxs) abort
     echo "\n"
     let idx = 0
     let idlast = len(a:rowvals)
     while idx < idlast
+        " TODO support for neat-list
+        " if exists('loaded_neatlist') else use generic
         call s:multiselect_showrow_generic(a:rowvals[idx], a:rowids[idx], a:rowctxs[idx])
         let idx += 1
     endwhile
@@ -521,6 +516,8 @@ endfunction
 "   *** Goto Buffer ***
 "--------------------------------------------------
 function! s:switch_buffer(bnr, switchto=0) abort
+    " TODO switchbuf options don't seem to be working perfectly,
+    " soemtimes opens buffer in a new split
     if a:switchto
         let save = &switchbuf
         let &switchbuf = 'useopen,usetab'
