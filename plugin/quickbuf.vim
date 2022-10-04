@@ -158,7 +158,7 @@ function! s:Expression._build(expr) abort
 
 endfunction
 
-function! s:Expression._complete(value, ...) abort
+function! s:Expression._complete(value) abort
     " need to use [A]rgLead (not Cmd[L]ine) for command-completion to work correctly
     " as L will also include precending command before argument, eg.
     "   :QBLess test     <- A='test' L='QBLess test'
@@ -187,7 +187,9 @@ function! s:Expression._match() abort
          \ : self.is_number() ? s:enum_selectionmode.bufnr
          \ : s:enum_selectionmode.filepath
 
-    let rs = s:matchfor_func_refs[sm](self.inputchars)
+    let rs = s:matchfor_func_refs[sm](self.inputchars, {
+        \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer()
+        \ })
     let self.data_selectionmode = sm
     " make sure resultset is always in a list not a single value
     let self.data_results = type(rs) == v:t_list ? rs : [rs]
@@ -320,10 +322,16 @@ function! s:Expression.hasflag_usenoname() abort
     return self._flagmatch('!!')
 endfunction
 
-" TODO '^' flag to use vim's buffer compeletion (to support regex support when
-" needed)
-" TODO '??' flag to not remove current buffer from results (multiselect still
-" active)
+" request current buffer not be removed from results (this does not cancel
+" mutliselect ? flag, as its meant to be used in conjunction)
+function! s:Expression.hasflag_includecurrentbuffer() abort
+    return self._flagmatch('??')
+endfunction
+
+" useful for using vim regex buffer selection
+function! s:Expression.hasflag_usevimcompletion() abort
+    return self._flagmatch('\^')
+endfunction
 
 "--------------------------------------------------
 "   *** Expression Engine : Multiselection ***
@@ -391,7 +399,7 @@ endfunction
 "--------------------------------------------------
 "   *** String Matching Functions ***
 "--------------------------------------------------
-function! s:matchfor_filepath(value, ...) abort
+function! s:matchfor_filepath(value, opts={}) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
@@ -401,33 +409,35 @@ function! s:matchfor_filepath(value, ...) abort
 
     " using normal vim completion while match algo is wip
     let rs = getcompletion(a:value, 'buffer')
-    let mybufnr = bufnr()
-    call filter(rs, {_,val -> bufnr(val) != mybufnr})
+    if !(a:opts->get('includecurrentbuffer', 0))
+        let mybufnr = bufnr()
+        call filter(rs, {_,val -> bufnr(val) != mybufnr})
+    endif
     return rs
 endfunction
 
-function! s:matchfor_aliases(value, ...) abort
+function! s:matchfor_aliases(value, opts={}) abort
     return filter(keys(s:aliases), 'v:val =~ "^' . a:value .'"')
 endfunction
 
-function! s:matchfor_arglist(value, ...) abort
+function! s:matchfor_arglist(value, opts={}) abort
     let aglist = copy(argv())
     return filter(aglist, 'v:val =~ "^' . a:value . '"')
 endfunction
 
-function! s:matchfor_buffernumber(value, ...) abort
+function! s:matchfor_buffernumber(value, opts={}) abort
     " use bang flag to match hidden/deleted buffers
     let FuncRef = s:Expression.hasflag_bang() ? function('bufexists') : function('buflisted')
     return FuncRef(str2nr(a:value)) ? a:value : []
 endfunction
 
-function! s:matchfor_nonamebufs(value, ...) abort
+function! s:matchfor_nonamebufs(value, opts={}) abort
     " TODO match value in the buffer itself using getbufline()
     " some sort of optimisation/caching needed before implementing this so that we
     " don't have to run the matches more than once when possible
 
     let nonamebufs = getbufinfo({'buflisted':1})
-    let mybufnr = bufnr()
+    let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
     call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
     call map(nonamebufs, {_,val -> val.bufnr})
 
@@ -561,7 +571,11 @@ function! s:CompleteFuncWrapper(value, ...)
     return s:Expression._complete(a:value)
 endfunction
 
-let s:CompleteFuncLambdaWrapper = {a,... -> s:CompleteFuncWrapper(a)}
+let s:CompleteFuncLambdaWrapper = {a, ... -> s:CompleteFuncWrapper(a)}
+
+function! s:complete_aliases(A, ...)
+    return s:matchfor_aliases(a:A)
+endfunction
 
 function! s:show_error(msg)
     echohl Error
@@ -574,7 +588,7 @@ endfunction
 "--------------------------------------------------
 command! QBAliasList echo s:aliases
 command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
-command! -nargs=1 -complete=customlist,s:matchfor_aliases QBAliasRemove call s:alias_remove(<q-args>)
+command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
