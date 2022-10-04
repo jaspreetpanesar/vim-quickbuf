@@ -133,14 +133,20 @@ function! s:Expression._build(expr) abort
         return
     endif
 
-    " TODO support for quoted text- so if start end end quotes with text in
-    " between is found, then use that as inputchar
+    " check for quoted expressions first
     " ie. anything inside start/end quotes will not be seen as a flag
     "   eg. ^"^~/home$"? where 1st ^ is a flag, but 2nd is not
+    " (this will match on the very last quote in the expression so quotes
+    "  chars can be quoted)
+    let pos = matchstrpos(a:expr, '"\zs.*\ze"')
 
-    " limit filename character scope to alphanumeric, some filesafe
-    " chars and standardd path characters
-    let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:~]\+')
+    " otherwise use best guess filepath matching as before. this match
+    " limits filename character scope to alphanumeric, some filepath
+    " chars and standard path characters
+    if pos[1] == -1 
+        let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:~]\+')
+    endif
+
     let self.inputchars = pos[0]
     if pos[1] > -1
         let self.inputflags[0] = pos[1] > 0 ? a:expr[:(pos[1]-1)] : ''
