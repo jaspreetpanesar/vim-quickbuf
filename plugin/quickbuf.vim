@@ -465,7 +465,7 @@ function! s:pub_prompt() abort
             call s:Expression.prompt()
             let bnr = s:Expression.resolve()
             if bnr isnot v:null
-                call s:switch_buffer(bnr, s:Expression.can_switchto())
+                call s:goto_buffer(bnr, s:Expression.can_switchto())
                 return
             endif
 
@@ -503,35 +503,12 @@ function! s:pub_less(expr) abort
     call s:Expression.set_expr(a:expr)
     try
         let bnr = s:Expression.resolve()
-        call s:switch_buffer(bnr, s:Expression.can_switchto())
+        call s:goto_buffer(bnr, s:Expression.can_switchto())
     catch /no-matches-found/
         call s:show_error('could not find any matches')
     catch /no-match/
         call s:show_error('invalid selection')
     catch /exit-requested/
-    endtry
-endfunction
-
-"--------------------------------------------------
-"   *** Goto Buffer ***
-"--------------------------------------------------
-function! s:switch_buffer(bnr, switchto=0) abort
-    " TODO switchbuf options don't seem to be working perfectly,
-    " soemtimes opens buffer in a new split
-    if a:switchto
-        let save = &switchbuf
-        let &switchbuf = 'useopen,usetab'
-    endif
-    " might not need this try-catch
-    try
-        exec (a:switchto ? 's' : '') . 'buffer ' . a:bnr
-    catch /E94/
-        echoerr 'could not switch to buffer ' . a:bnr
-
-    finally
-        if a:switchto
-            let &switchbuf = save
-        endif
     endtry
 endfunction
 
@@ -556,6 +533,25 @@ endfunction
 "--------------------------------------------------
 "   *** Helpers ***
 "--------------------------------------------------
+function! s:goto_buffer(bnr, switchtowindow=0) abort
+    if a:switchtowindow
+        let saved = &switchbuf
+        let &switchbuf = 'useopen,usetab'
+    endif
+
+    try
+        exec (a:switchtowindow && !empty(win_findbuf(a:bnr)) ? 's' : '') . 'buffer ' . a:bnr
+    catch /E86/
+        call s:show_error('could not switch to buffer ' . a:bnr)
+
+    finally
+        if exists('saved')
+            let &switchbuf = saved
+        endif
+    endtry
+
+endfunction
+
 " (workaround) wrappers for assigning completion to prompt as dict
 " function cannot be referenced (not sure if possible)
 function! s:CompleteFuncWrapper(value, ...)
