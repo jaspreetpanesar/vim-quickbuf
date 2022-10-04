@@ -395,6 +395,11 @@ endfunction
 "--------------------------------------------------
 "   *** String Matching Functions ***
 "--------------------------------------------------
+" TODO BUG: on windows, paths with \ are breaking string matching for
+" filepath and arglist
+" matching can be fixed with substituting \\ with \\\\ but might need to do
+" this globally for input expression?
+
 function! s:matchfor_filepath(value, opts={}) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
@@ -574,6 +579,15 @@ function! s:show_error(msg)
     echohl Error
     echo "\n".a:msg
     echohl None
+endfunction
+
+function! s:debug(...)
+    echo "\n-----DEBUG~PAUSE-----"
+    for msg in a:000
+        echo string(msg)
+    endfor
+    echo '---------------------'
+    call getchar()
 endfunction
 
 "--------------------------------------------------
