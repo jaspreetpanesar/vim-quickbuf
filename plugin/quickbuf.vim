@@ -118,9 +118,10 @@ function! s:Expression.reset() abort
     let self.inputchars = ''
     let self.inputflags = ['', '']
     let self.data_prefill = ''
-    let self.data_results = []
-    let self.data_exitrequested = 0
     let self.data_selectionmode = 0
+    let self.cache_inputchars = v:null
+    let self.cache_selectionmode = -1
+    let self.cache_matches = {}
 endfunction
 
 " needed to setup object properties
@@ -166,8 +167,7 @@ function! s:Expression._complete(value) abort
 
     " send character data to completion func
     " and map flags back into results
-    call self._match()
-    let results = copy(self.data_results)
+    let results = self._match()
     return map(results, {_,val -> self.inputflags[0] . val . self.inputflags[1]})
 
 endfunction
@@ -187,13 +187,32 @@ function! s:Expression._match() abort
          \ : self.is_number() ? s:enum_selectionmode.bufnr
          \ : s:enum_selectionmode.filepath
 
+    " can we use cached results?
+    if (sm == self.cache_selectionmode) && (self.inputchars == self.cache_inputchars || self.cache_matches->has_key(self.inputchars))
+        return self.cache_matches->keys()
+    endif
+
     let rs = s:matchfor_func_refs[sm](self.inputchars, {
         \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
         \ 'includedeletedbuffer': self.hasflag_bang(),
         \ })
     let self.data_selectionmode = sm
     " make sure resultset is always in a list not a single value
-    let self.data_results = type(rs) == v:t_list ? rs : [rs]
+    let rs = type(rs) == v:t_list ? rs : [rs]
+
+    " convert matches to results
+    let matches = {}
+    for m in rs
+        let matches[m] = self._convert2bufnr(m)
+    endfor
+
+    " cache results
+    let self.cache_inputchars = self.inputchars
+    let self.cache_selectionmode = self.data_selectionmode
+    let self.cache_matches = matches
+
+    return matches->keys()
+
 endfunction
 
 function! s:Expression._promptstr() abort
@@ -219,17 +238,14 @@ function! s:Expression._convert2bufnr(value) abort
 
     endif
 
-    if bfnr <= 0
-        throw 'buffer-not-exists'
-    endif
-    return bfnr
+    return (bfnr <= 0 ? -1 : bfnr)
 
 endfunction
 
 function! s:Expression.resolve() abort
-    call self._match()
+    let rset = self._match()
 
-    if len(self.data_results) == 0
+    if len(rset) == 0
         throw 'no-matches-found'
     endif
 
@@ -240,17 +256,21 @@ function! s:Expression.resolve() abort
         endif
     else
         " otherwise always return the top match
-        let selc = self.data_results[0]
+        let selc = rset[0]
     endif
 
-    return self._convert2bufnr(selc)
+    " TODO this shouldn't be reading the cache
+    if self.cache_matches->has_key(selc)
+        return self.cache_matches[selc]
+    else
+        throw 'buffer-not-exists'
+    endif
 
 endfunction
 
 " name filter or scan or fetch?
 function! s:Expression.fetch(limit=-1) abort
-    call self._match()
-    return self.data_results[:a:limit]
+    return self._match()[:a:limit]
 endfunction
 
 function! s:Expression.prompt() abort
