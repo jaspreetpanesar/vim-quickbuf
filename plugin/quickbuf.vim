@@ -206,7 +206,7 @@ function! s:Expression._convert2bufnr(value) abort
         let bfnr = bufnr(a:value)
 
     elseif self.data_selectionmode == s:enum_selectionmode.aliases
-        let bfnr = bufnr( s:aliases[a:value] )
+        let bfnr = s:aliases[a:value]
 
     elseif self.data_selectionmode == s:enum_selectionmode.arglist
         let bfnr = bufnr(a:value)
@@ -526,19 +526,39 @@ endfunction
 "--------------------------------------------------
 "   *** Aliases ***
 "--------------------------------------------------
-function! s:alias_add(name, path) abort
-    let s:aliases[a:name] = a:path
+function! s:alias_add(name, bufnr) abort
+    let s:aliases[a:name] = a:bufnr
     call s:alias_serialise()
 endfunction
 
-function! s:alias_remove(name, path) abort
-    call s:aliases->remove(name)
+function! s:alias_remove(name) abort
+    call remove(s:aliases, a:name)
     call s:alias_serialise()
 endfunction
 
+" TODO call this on BufDelete
 function! s:alias_serialise() abort
-    return 0
-    " TODO regenerate global var
+    let data = []
+    for key in keys(s:aliases)
+        let val = s:aliases[key]
+        let path = expand('#'.val.':p')
+        if !empty(path)
+            call add(data, key.'#'.path)
+        endif
+    endfor
+    let g:QuickBufAliases = join(data, ',')
+endfunction
+
+" TODO call this on SessionLoadPost
+function! s:alias_deserialise() abort
+    let s:aliases = {}
+    for value in split(get(g:, 'QuickBufAliases', ""), ',')
+        let data = split(value, '#')
+        let bufnr = bufnr(data[1])
+        if !empty(bufnr)
+            let s:aliases[data[0]] = bufnr
+        endif
+    endfor
 endfunction
 
 "--------------------------------------------------
@@ -581,6 +601,10 @@ function! s:complete_aliases(A, ...)
     return s:matchfor_aliases(a:A)
 endfunction
 
+function! s:complete_none(...)
+    return []
+endfunction
+
 function! s:show_error(msg)
     echohl Error
     echo "\n".a:msg
@@ -604,7 +628,7 @@ endfunction
 "   *** Commands ***
 "--------------------------------------------------
 command! QBAliasList echo s:aliases
-command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, expand("%:p"))
+command! -nargs=1 QBAliasAdd call s:alias_add(<q-args>, bufnr())
 command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:alias_remove(<q-args>)
 command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
