@@ -118,9 +118,8 @@ function! s:Expression.reset() abort
     let self.inputchars = ''
     let self.inputflags = ['', '']
     let self.data_prefill = ''
-    let self.data_results = []
-    let self.data_exitrequested = 0
-    let self.data_selectionmode = 0
+    let self.data_matches = []
+    let self.cachectx_input = ''
 endfunction
 
 " needed to setup object properties
@@ -167,33 +166,35 @@ function! s:Expression._complete(value) abort
     " send character data to completion func
     " and map flags back into results
     call self._match()
-    let results = copy(self.data_results)
-    return map(results, {_,val -> self.inputflags[0] . val . self.inputflags[1]})
+    return map(copy(self.data_matches), {_,val -> self.inputflags[0] . val.value . self.inputflags[1]})
 
 endfunction
 
 function! s:Expression._match() abort
-    " TODO can add an optimisation step here
-    " which checks whether the current expr is equal to previous expr
-    " then use the previously generated results instead
+    " TODO implement cache
+    " TODO what happens with empty cached results?
+    " if !empty(self.cachectx_input) && (self.input == self.cachectx_input || index(self.cachectx_input, self.inputchars))
+    "     return
+    " endif
 
-    " alternatively, match() can return its result set from cached storage (as
-    " it stores it now) or generate it if its out of date (ie. prompt expr
-    " is not the same as the cached/stored version)
-
+    " if we cannot use cache, then re-match
     let sm = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
          \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
          \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
          \ : self.is_number() ? s:enum_selectionmode.bufnr
          \ : s:enum_selectionmode.filepath
 
-    let rs = s:matchfor_func_refs[sm](self.inputchars, {
+    " TODO pass an out results array ref to the matchfor funcs?
+    " it will allow for multiple resultsets to be collated
+
+    let rm = s:matchfor_func_refs[sm](self.inputchars, {
         \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
         \ 'includedeletedbuffer': self.hasflag_bang(),
         \ })
-    let self.data_selectionmode = sm
-    " make sure resultset is always in a list not a single value
-    let self.data_results = type(rs) == v:t_list ? rs : [rs]
+
+    let self.cachectx_input = self.input
+    let self.data_matches = rm
+
 endfunction
 
 function! s:Expression._promptstr() abort
@@ -201,35 +202,10 @@ function! s:Expression._promptstr() abort
     return '>> '
 endfunction
 
-function! s:Expression._convert2bufnr(value) abort
-    if self.data_selectionmode == s:enum_selectionmode.filepath
-        let bfnr = bufnr(a:value)
-
-    elseif self.data_selectionmode == s:enum_selectionmode.aliases
-        let bfnr = s:aliases[a:value]
-
-    elseif self.data_selectionmode == s:enum_selectionmode.arglist
-        let bfnr = bufnr(a:value)
-
-    elseif self.data_selectionmode == s:enum_selectionmode.bufnr
-        let bfnr = str2nr(a:value)
-
-    elseif self.data_selectionmode == s:enum_selectionmode.noname
-        let bfnr = str2nr(a:value)
-
-    endif
-
-    if bfnr <= 0
-        throw 'buffer-not-exists'
-    endif
-    return bfnr
-
-endfunction
-
 function! s:Expression.resolve() abort
     call self._match()
 
-    if len(self.data_results) == 0
+    if len(self.data_matches) == 0
         throw 'no-matches-found'
     endif
 
@@ -240,17 +216,21 @@ function! s:Expression.resolve() abort
         endif
     else
         " otherwise always return the top match
-        let selc = self.data_results[0]
+        let selc = self.data_matches[0]
     endif
 
-    return self._convert2bufnr(selc)
+
+    if selc.bufnr <= 0
+        throw 'buffer-not-exists'
+    endif
+    return selc.bufnr
 
 endfunction
 
 " name filter or scan or fetch?
 function! s:Expression.fetch(limit=-1) abort
     call self._match()
-    return self.data_results[:a:limit]
+    return self.data_matches[:a:limit]
 endfunction
 
 function! s:Expression.prompt() abort
@@ -278,11 +258,8 @@ function! s:Expression.can_switchto() abort
 endfunction
 
 function! s:Expression.can_multiselect() abort
+    " TODO if switch mutliselect, then check that match count > 1
     return (s:switch_multiselect ? !s:switch_multiselect : self.hasflag_multiselect())
-endfunction
-
-function! s:Expression.exit_requested() abort
-    return self.data_exitrequested
 endfunction
 
 function! s:Expression.is_empty() abort
@@ -337,10 +314,13 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    let bflist = self.fetch( len(s:msw_selection_vals) )
-    let idlist = map(copy(bflist), {i -> s:msw_selection_vals[i]})
-    let ctxlist = map(copy(bflist), {_-> v:null})
-    call s:multiselect_showlist(bflist, idlist, ctxlist)
+    let matches = self.fetch(len(s:msw_selection_vals))
+
+    let items   = map(copy(matches), {_, v -> v.repr })
+    let idlist  = map(copy(items),   {i -> s:msw_selection_vals[i]})
+    let ctxlist = map(copy(items),   {_-> v:null})
+
+    call s:multiselect_showlist(items, idlist, ctxlist)
     let selc = getcharstr()
 
     " match escape
@@ -366,7 +346,7 @@ function! s:Expression.multiselect() abort
     " hides the message display helper (press key to continue) on
     " successful selection
     redraw
-    return bflist[idx]
+    return matches[idx]
 
 endfunction
 
@@ -405,6 +385,10 @@ endfunction
 " complete
 " ---
 
+function! s:new_match_item(val, bufnr, repr, ctx='')
+    return { 'value':a:val, 'bufnr':a:bufnr, 'repr':a:repr, 'ctx':a:ctx }
+endfu
+
 function! s:matchfor_filepath(value, opts={}) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
@@ -414,27 +398,41 @@ function! s:matchfor_filepath(value, opts={}) abort
     " raw full/relataive path matches
 
     " using normal vim completion while match algo is wip
-    let rs = getcompletion(a:value, 'buffer')
+    let matches = getcompletion(a:value, 'buffer')
     if !(a:opts->get('includecurrentbuffer', 0))
         let mybufnr = bufnr()
-        call filter(rs, {_,val -> bufnr(val) != mybufnr})
+        call filter(matches, {_,val -> bufnr(val) != mybufnr})
     endif
-    return rs
+
+    let res = []
+    for m in matches
+        call add(res, s:new_match_item(m, bufnr(m), m) )
+    endfor
+    return res
+
 endfunction
 
 function! s:matchfor_aliases(value, opts={}) abort
-    return filter(keys(s:aliases), 'v:val =~ "^' . a:value .'"')
+    let res = []
+    for m in filter(keys(s:aliases), {_,val -> val =~ a:value})
+        call add(res, s:new_match_item(m, s:aliases[m], m) )
+    endfor
+    return res
 endfunction
 
 function! s:matchfor_arglist(value, opts={}) abort
+    let res = []
     let aglist = copy(argv())
     let value = s:forwardslash(a:value)
-    return filter(aglist, {_,arg -> match(s:forwardslash(arg), value) > -1})
+    for m in filter(aglist, {_,arg -> match(s:forwardslash(arg), value) > -1})
+        call add(res, s:new_match_item(m, bufnr(m), m) )
+    endfor
+    return res
 endfunction
 
 function! s:matchfor_buffernumber(value, opts={}) abort
     let FuncRef = a:opts->get('includedeletedbuffer', 0) ? function('bufexists') : function('buflisted')
-    return FuncRef(str2nr(a:value)) ? a:value : []
+    return FuncRef(str2nr(a:value)) ? s:new_match_item(a:value, a:value, a:value) : []
 endfunction
 
 function! s:matchfor_nonamebufs(value, opts={}) abort
@@ -447,11 +445,13 @@ function! s:matchfor_nonamebufs(value, opts={}) abort
     call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
     call map(nonamebufs, {_,val -> val.bufnr})
 
-    if empty(a:value)
-        return nonamebufs
-    else
-        return match(nonamebufs, str2nr(a:value)) > -1 ? a:value : []
-    endif
+    let matches = empty(a:value) ? nonamebufs : match(nonamebufs, str2nr(a:value)) > -1 ? [a:value] : []
+
+    let res = []
+    for m in matches
+        call add(res, s:new_match_item(m, m, '[No Name #'.m.']'))
+    endfor
+    return res
 
 endfunction
 
@@ -468,7 +468,6 @@ let s:matchfor_func_refs = [
 "   *** Plugin Interaction ***
 "--------------------------------------------------
 function! s:pub_prompt() abort
-    call s:bcache_load()
     call s:Expression.reset()
 
     while 1
@@ -496,10 +495,10 @@ function! s:pub_prompt() abort
 endfunction
 
 " *** Show filtered buffer list only ***
+" TODO looks like this has been broken for a whlie?
 function! s:pub_list(expr) abort
     " show result based on provided expr
     " ie. same as running prompt with flag ? and without the prompt 
-    call s:bcache_load()
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
     let blist = s:Expression.fetch()
@@ -509,7 +508,6 @@ endfunction
 
 " *** Headless Mode ***
 function! s:pub_less(expr) abort
-    call s:bcache_load()
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
     try
@@ -590,7 +588,6 @@ function! s:CompleteFuncWrapper(value, ...)
     " and resetting the expression
     "   - we need expression reset to tab complete
     "   - we also need buffer cache to tab complete ?
-    call s:bcache_load()
     call s:Expression.reset()
     return s:Expression._complete(a:value)
 endfunction
@@ -644,4 +641,7 @@ ca QBAL QBAliasList
 ca QBP QBPrompt
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
 nnoremap <space><space> :Quick<cr>
+
+call s:alias_deserialise()
+
 
