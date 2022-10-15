@@ -187,13 +187,14 @@ function! s:Expression._match() abort
     " TODO pass an out results array ref to the matchfor funcs?
     " it will allow for multiple resultsets to be collated
 
-    let rm = s:matchfor_func_refs[sm](self.inputchars, {
+    let results = []
+    call s:matchfor_func_refs[sm](results, self.inputchars, {
         \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
         \ 'includedeletedbuffer': self.hasflag_bang(),
         \ })
 
     let self.cachectx_input = self.input
-    let self.data_matches = rm
+    let self.data_matches = results
 
 endfunction
 
@@ -218,7 +219,6 @@ function! s:Expression.resolve() abort
         " otherwise always return the top match
         let selc = self.data_matches[0]
     endif
-
 
     if selc.bufnr <= 0
         throw 'buffer-not-exists'
@@ -358,7 +358,7 @@ function! s:multiselect_showlist(rowvals, rowids, rowctxs) abort
     let idx = 0
     let idlast = len(a:rowvals)
     while idx < idlast
-        " TODO support for neat-list
+        " TODO(future) support for neat-list
         " if exists('loaded_neatlist') else use generic
         call s:multiselect_showrow_generic(a:rowvals[idx], a:rowids[idx], a:rowctxs[idx])
         let idx += 1
@@ -389,7 +389,7 @@ function! s:new_match_item(val, bufnr, repr, ctx='')
     return { 'value':a:val, 'bufnr':a:bufnr, 'repr':a:repr, 'ctx':a:ctx }
 endfu
 
-function! s:matchfor_filepath(value, opts={}) abort
+function! s:matchfor_filepath(results, value, opts={}) abort
     " TODO implement string match algo
     " - try case sensitive match first, then case insensitive
     " - multiple words (sep by space) for increasing accuracy of match
@@ -404,54 +404,45 @@ function! s:matchfor_filepath(value, opts={}) abort
         call filter(matches, {_,val -> bufnr(val) != mybufnr})
     endif
 
-    let res = []
     for m in matches
-        call add(res, s:new_match_item(m, bufnr(m), m) )
+        call add(a:results, s:new_match_item(m, bufnr(m), m) )
     endfor
-    return res
 
 endfunction
 
-function! s:matchfor_aliases(value, opts={}) abort
-    let res = []
-    for m in filter(keys(s:aliases), {_,val -> val =~ a:value})
-        call add(res, s:new_match_item(m, s:aliases[m], m) )
+function! s:matchfor_aliases(results, value, opts={}) abort
+    for m in filter(keys(s:aliases), {_,val -> val =~? a:value})
+        call add(a:results, s:new_match_item(m, s:aliases[m], m) )
     endfor
-    return res
 endfunction
 
-function! s:matchfor_arglist(value, opts={}) abort
-    let res = []
+function! s:matchfor_arglist(results, value, opts={}) abort
     let aglist = copy(argv())
     let value = s:forwardslash(a:value)
     for m in filter(aglist, {_,arg -> match(s:forwardslash(arg), value) > -1})
-        call add(res, s:new_match_item(m, bufnr(m), m) )
+        call add(a:results, s:new_match_item(m, bufnr(m), m) )
     endfor
-    return res
 endfunction
 
-function! s:matchfor_buffernumber(value, opts={}) abort
+function! s:matchfor_buffernumber(results, value, opts={}) abort
     let FuncRef = a:opts->get('includedeletedbuffer', 0) ? function('bufexists') : function('buflisted')
-    return FuncRef(str2nr(a:value)) ? s:new_match_item(a:value, a:value, a:value) : []
+    if FuncRef(str2nr(a:value)) 
+        call add(a:results, s:new_match_item(a:value, a:value, a:value))
+    endif
 endfunction
 
-function! s:matchfor_nonamebufs(value, opts={}) abort
     " TODO match value in the buffer itself using getbufline()
-    " some sort of optimisation/caching needed before implementing this so that we
-    " don't have to run the matches more than once when possible
-
+function! s:matchfor_nonamebufs(results, value, opts={}) abort
     let nonamebufs = getbufinfo({'buflisted':1})
     let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
     call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
-    call map(nonamebufs, {_,val -> val.bufnr})
 
+    call map(nonamebufs, {_,val -> val.bufnr})
     let matches = empty(a:value) ? nonamebufs : match(nonamebufs, str2nr(a:value)) > -1 ? [a:value] : []
 
-    let res = []
     for m in matches
-        call add(res, s:new_match_item(m, m, '[No Name #'.m.']'))
+        call add(a:results, s:new_match_item(m, m, '[No Name #'.m.']'))
     endfor
-    return res
 
 endfunction
 
