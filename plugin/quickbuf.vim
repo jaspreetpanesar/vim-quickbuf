@@ -644,14 +644,24 @@ function! s:filtered_getbufline(bufnr, max)
     return lines[:(a:max)]
 endfunction
 
-function! s:debug(...)
-    echo "\n-----DEBUG~PAUSE-----"
-    for msg in a:000
-        echo string(msg)
-    endfor
-    echo '---------------------'
-    call getchar()
-endfunction
+if 0
+    function! s:debug(...)
+        echo "\n-----DEBUG~PAUSE-----"
+        for msg in a:000
+            echo string(msg)
+        endfor
+        echo '---------------------'
+        call getchar()
+    endfunction
+else
+    let s:debuglog = []
+    function! s:debug(...)
+        for msg in a:000
+            call add(s:debuglog, msg)
+        endfor
+    endfunction
+    command! QBDebugLog for m in s:debuglog<bar>echo m<bar>endfor
+endif
 
 "--------------------------------------------------
 "   *** Commands ***
