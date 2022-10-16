@@ -532,13 +532,23 @@ endfunction
 "   *** Aliases ***
 "--------------------------------------------------
 function! s:alias_add(name, bufnr) abort
-    let s:aliases[a:name] = a:bufnr
-    call s:alias_serialise()
+    if match(a:name, '[^a-zA-Z0-9]') > -1
+        call s:show_error('alias name invalid - must be alphanumeric characters only')
+    else
+        let s:aliases[a:name] = a:bufnr
+        call s:alias_serialise()
+        echo "alias added '" . a:name . "'"
+    endif
 endfunction
 
 function! s:alias_remove(name) abort
-    call remove(s:aliases, a:name)
-    call s:alias_serialise()
+    if s:aliases->has_key(a:name)
+        call remove(s:aliases, a:name)
+        call s:alias_serialise()
+        echo "alias removed '" . a:name . "'"
+    else
+        call s:show_error('alias "' . a:name . '" does not exist')
+    endif
 endfunction
 
 " TODO call this on BufDelete
@@ -602,7 +612,9 @@ endfunction
 let s:CompleteFuncLambdaWrapper = {a, ... -> s:CompleteFuncWrapper(a)}
 
 function! s:complete_aliases(A, ...)
-    return s:matchfor_aliases(a:A)
+    let res = []
+    call s:matchfor_aliases(res, a:A)
+    return map(res, {_,v -> v.value})
 endfunction
 
 function! s:complete_none(...)
