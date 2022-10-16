@@ -40,73 +40,74 @@ let s:custom_commandname = "QuickBuffer"
 let s:aliases = {}
 let s:buffercache = []
 
-"--------------------------------------------------
-"   *** Buffer Context Items ***
-"--------------------------------------------------
-let s:bufitem = {
-\ 'name': '',
-\ 'context': '',
-\ 'relpath': '',
-\ 'fullpath': '',
-\ 'bufnr': '',
-\ 'is_modified': 0,
-\ 'is_current': 0,
-\ 'is_alternate': 0,
-\ 'is_noname': 0,
-\ }
 
-" TODO this should only be happening once per buffer lifetime
-function! s:bufitem.new(binfo) abort
-    let item = copy(self)
-    call item._gen(a:binfo)
-    return item
-endfunction
-
-" renegrate minimal amount of data
-" ie. context, and flags
-" will be run everytime before item is shown
-function! s:bufitem.upd(binfo) abort
-    " update flags is_current, is_alternate, is_modified
-    " update context
-endfunction
-
-" regenerate all data
-function! s:bufitem.regen() abort
-    let binfo = getbufinfo(self.bufnr)
-    call self._gen(binfo)
-endfunction
-
-function! s:bufitem._gen(binfo) abort
-    let self.bufnr = a:binfo.bufnr
-    let self.is_current = (bufnr() == self.bufnr)
-    let self.is_alternate = (bufnr('#') == self.bufnr)
-    let self.is_modified = a:binfo.changed
-
-    let path = a:binfo.name
-    if empty(path)
-        let self.is_noname = 1
-        let self.name = '#'.self.bufnr
-   else
-        let self.fullpath = path
-        let self.relpath = fnamemodify(path, ':.')
-        let self.name = fnamemodify(path, ':t')
-        let self.context = fnamemodify(path, ':h')
-    endif
-
-endfunction
-
-function! s:bufitem.tostring() abort
-    return self.name . ' (' . self.context . ')'
-endfunction
-
-" TODO cache this list with autocmds ?
-function! s:bcache_load() abort
-    let items = []
-    for buf in getbufinfo({'buflisted':1})
-        call add(items, s:bufitem.new(buf))
-    endfor
-    let s:buffercache = items
-endfunction
+""--------------------------------------------------
+""   *** Buffer Context Items ***
+""--------------------------------------------------
+"let s:bufitem = {
+"\ 'name': '',
+"\ 'context': '',
+"\ 'relpath': '',
+"\ 'fullpath': '',
+"\ 'bufnr': '',
+"\ 'is_modified': 0,
+"\ 'is_current': 0,
+"\ 'is_alternate': 0,
+"\ 'is_noname': 0,
+"\ }
+"
+"" TODO this should only be happening once per buffer lifetime
+"function! s:bufitem.new(binfo) abort
+"    let item = copy(self)
+"    call item._gen(a:binfo)
+"    return item
+"endfunction
+"
+"" renegrate minimal amount of data
+"" ie. context, and flags
+"" will be run everytime before item is shown
+"function! s:bufitem.upd(binfo) abort
+"    " update flags is_current, is_alternate, is_modified
+"    " update context
+"endfunction
+"
+"" regenerate all data
+"function! s:bufitem.regen() abort
+"    let binfo = getbufinfo(self.bufnr)
+"    call self._gen(binfo)
+"endfunction
+"
+"function! s:bufitem._gen(binfo) abort
+"    let self.bufnr = a:binfo.bufnr
+"    let self.is_current = (bufnr() == self.bufnr)
+"    let self.is_alternate = (bufnr('#') == self.bufnr)
+"    let self.is_modified = a:binfo.changed
+"
+"    let path = a:binfo.name
+"    if empty(path)
+"        let self.is_noname = 1
+"        let self.name = '#'.self.bufnr
+"   else
+"        let self.fullpath = path
+"        let self.relpath = fnamemodify(path, ':.')
+"        let self.name = fnamemodify(path, ':t')
+"        let self.context = fnamemodify(path, ':h')
+"    endif
+"
+"endfunction
+"
+"function! s:bufitem.tostring() abort
+"    return self.name . ' (' . self.context . ')'
+"endfunction
+"
+"" TODO cache this list with autocmds ?
+"function! s:bcache_load() abort
+"    let items = []
+"    for buf in getbufinfo({'buflisted':1})
+"        call add(items, s:bufitem.new(buf))
+"    endfor
+"    let s:buffercache = items
+"endfunction
 
 "--------------------------------------------------
 "   *** Expression Engine ***
@@ -119,7 +120,8 @@ function! s:Expression.reset() abort
     let self.inputflags = ['', '']
     let self.data_prefill = ''
     let self.data_matches = []
-    let self.cachectx_input = ''
+    let self.cachectx_inputchars = ''
+    let self.cachectx_selectionmode = ''
 endfunction
 
 " needed to setup object properties
@@ -170,30 +172,45 @@ function! s:Expression._complete(value) abort
 
 endfunction
 
-function! s:Expression._match() abort
-    " TODO implement cache
+function! s:Expression._can_use_cache(mode)
     " TODO what happens with empty cached results?
-    " if !empty(self.cachectx_input) && (self.input == self.cachectx_input || index(self.cachectx_input, self.inputchars))
-    "     return
-    " endif
+    " check flags too?
+    if empty(self.data_matches)
+        call s:debug('can_use_cache(): no matches exist')
+        return 0
+    elseif a:mode != self.cachectx_selectionmode
+        call s:debug('can_use_cache(): selection mode is different')
+        return 0
+    " elseif empty(self.inputchars) != empty(self.cachectx_inputchars)
+    "     call s:debug('can_use_cache(): input empty/not', self.inputchars, self.cachectx_inputchars)
+    "     return 0
+    elseif match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) < 0 && self.input != self.cachectx_inputchars
+        call s:debug('can_use_cache(): input not matches anything', map(copy(self.data_matches), {_,v -> v.value}), self.input)
+        return 0
+    endif
+    return 1
+endfunction
 
-    " if we cannot use cache, then re-match
-    let sm = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
+function! s:Expression._match() abort
+    let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
          \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
          \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
          \ : self.is_number() ? s:enum_selectionmode.bufnr
          \ : s:enum_selectionmode.filepath
 
-    " TODO pass an out results array ref to the matchfor funcs?
-    " it will allow for multiple resultsets to be collated
+    if self._can_use_cache(mode)
+        call s:debug('using cache')
+        return
+    endif
 
     let results = []
-    call s:matchfor_func_refs[sm](results, self.inputchars, {
+    call s:matchfor_func_refs[mode](results, self.inputchars, {
         \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
         \ 'includedeletedbuffer': self.hasflag_bang(),
         \ })
 
-    let self.cachectx_input = self.input
+    let self.cachectx_inputchars = self.inputchars
+    let self.cachectx_selectionmode = mode
     let self.data_matches = results
 
 endfunction
@@ -508,7 +525,7 @@ function! s:pub_list(expr) abort
     " ie. same as running prompt with flag ? and without the prompt 
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
-    let blist = s:Expression.fetch()
+    let matches = s:Expression.fetch()
     let idlist = map(copy(blist), 'v:val.bufnr')
     call s:buffer_list(blist, idlist)
 endfunction
