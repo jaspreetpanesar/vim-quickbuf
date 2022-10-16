@@ -258,8 +258,11 @@ function! s:Expression.can_switchto() abort
 endfunction
 
 function! s:Expression.can_multiselect() abort
-    " TODO if switch mutliselect, then check that match count > 1
-    return (s:switch_multiselect ? !s:switch_multiselect : self.hasflag_multiselect())
+    return (s:switch_multiselect && len(self.data_matches) > 1 ? !self.hasflag_multiselect() : self.hasflag_multiselect())
+    " switch =    1   0   1   1
+    " count  =    2   2   1   2
+    " flag   =    1   1   1   0
+    " ms?..       0   1   1   1
 endfunction
 
 function! s:Expression.is_empty() abort
@@ -431,17 +434,30 @@ function! s:matchfor_buffernumber(results, value, opts={}) abort
     endif
 endfunction
 
-    " TODO match value in the buffer itself using getbufline()
 function! s:matchfor_nonamebufs(results, value, opts={}) abort
+    " retrieve all noname buffers
     let nonamebufs = getbufinfo({'buflisted':1})
+
+    " remove current buffer from list
     let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
     call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
 
-    call map(nonamebufs, {_,val -> val.bufnr})
-    let matches = empty(a:value) ? nonamebufs : match(nonamebufs, str2nr(a:value)) > -1 ? [a:value] : []
+    " filter to buffers that cantain the provided string
+    if !empty(a:value)
+        " TODO configrable option for how many lines to check
+        call filter(nonamebufs, {_,val -> match( s:filtered_getbufline(val.bufnr, 50), a:value ) > -1})
+    endif
 
-    for m in matches
-        call add(a:results, s:new_match_item(m, m, '[No Name #'.m.']'))
+    " TODO because we are no longer matching the value as a buffernumber with
+    " combination with the autocomplete, then !!2 (after autcomplete) will not work 
+    " anymore (this should work once _match does prompt value check against cached 
+    " results is implemented)
+    " ^ this is a very side-effect feature so not sure if we should be
+    " implemeting behaviour this way (might need to rethink this)
+
+    for b in nonamebufs
+        let bufnr = b.bufnr
+        call add(a:results, s:new_match_item(bufnr, bufnr, '[No Name #'.bufnr.']'))
     endfor
 
 endfunction
@@ -601,6 +617,19 @@ endfunction
 
 function! s:forwardslash(path)
     return substitute(a:path, '\', '/', 'g')
+endfunction
+
+" returns the specified amount of lines starting from the first
+" non-blank line
+function! s:filtered_getbufline(bufnr, max)
+    let lines = getbufline(a:bufnr, 1, '$')
+    for i in range(len(lines))
+        if !empty(lines[i])
+            let lines = lines[i:]
+            break
+        endif
+    endfor
+    return lines[:(a:max)]
 endfunction
 
 function! s:debug(...)
