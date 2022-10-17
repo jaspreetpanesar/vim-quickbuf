@@ -689,7 +689,7 @@ else
     let s:debuglog = []
     function! s:debug(...)
         for msg in a:000
-            call add(s:debuglog, msg)
+            call add(s:debuglog, string(msg))
         endfor
     endfunction
     command! QBDebugLog for m in s:debuglog<bar>echo m<bar>endfor
