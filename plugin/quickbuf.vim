@@ -40,7 +40,6 @@ let s:custom_commandname = "QuickBuffer"
 let s:aliases = {}
 let s:buffercache = []
 
-
 ""--------------------------------------------------
 ""   *** Buffer Context Items ***
 ""--------------------------------------------------
@@ -188,6 +187,7 @@ function! s:Expression._can_use_cache(mode)
         call s:debug('can_use_cache(): input not matches anything', map(copy(self.data_matches), {_,v -> v.value}), self.input)
         return 0
     endif
+    call s:debug('can_use_cache(): true')
     return 1
 endfunction
 
@@ -199,9 +199,21 @@ function! s:Expression._match() abort
          \ : s:enum_selectionmode.filepath
 
     if self._can_use_cache(mode)
-        call s:debug('using cache')
+        call s:debug('using cache', self.data_matches)
+
+        " TODO filter the matches again based on the latest prompt value
+        " but doing this we're basically discarding the results, is that
+        " what we want to be doing?
+        " doing it this way, we wouldn't want this system to be called
+        " 'cache', and should be moreso 'can_use_autocomplete' as a method
+        " of optimisation rather than a cache
+        " ^ in essence, if we have a set of results already, and those 
+        " results can be deemed to be 'valid', then use them now
+
         return
     endif
+
+    call s:debug('generating matches')
 
     let results = []
     call s:matchfor_func_refs[mode](results, self.inputchars, {
@@ -459,18 +471,17 @@ function! s:matchfor_nonamebufs(results, value, opts={}) abort
     let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
     call filter(nonamebufs, {_,val -> empty(val.name) && val.bufnr != mybufnr})
 
-    " filter to buffers that cantain the provided string
     if !empty(a:value)
-        " TODO configrable option for how many lines to check
-        call filter(nonamebufs, {_,val -> match( s:filtered_getbufline(val.bufnr, 50), a:value ) > -1})
+        " TODO this is disabled for the moment (not sure if i want it)
+        if 0 && s:isnumber(a:value) && match(map(copy(nonamebufs), {_,v -> v.bufnr}), a:value) > -1
+            " filter to specific buffer by bufnr
+            call filter(nonamebufs, {_,v -> v.bufnr == a:value})
+        else
+            " filter to buffers that cantain the provided string
+            " TODO configrable option for how many lines to check
+            call filter(nonamebufs, {_,val -> match( s:filtered_getbufline(val.bufnr, 50), a:value ) > -1})
+        endif
     endif
-
-    " TODO because we are no longer matching the value as a buffernumber with
-    " combination with the autocomplete, then !!2 (after autcomplete) will not work 
-    " anymore (this should work once _match does prompt value check against cached 
-    " results is implemented)
-    " ^ this is a very side-effect feature so not sure if we should be
-    " implemeting behaviour this way (might need to rethink this)
 
     for b in nonamebufs
         let bufnr = b.bufnr
@@ -659,6 +670,10 @@ function! s:filtered_getbufline(bufnr, max)
         endif
     endfor
     return lines[:(a:max)]
+endfunction
+
+function! s:isnumber(val)
+    return match(a:val, '[^[:digit:]]') == -1
 endfunction
 
 if 0
