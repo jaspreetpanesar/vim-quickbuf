@@ -198,7 +198,8 @@ function! s:Expression._match() abort
          \ : self.is_number() ? s:enum_selectionmode.bufnr
          \ : s:enum_selectionmode.filepath
 
-    if self._can_use_cache(mode)
+    " TODO should we move the mode check here?
+    if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
         call s:debug('using cache', self.data_matches)
 
         " TODO filter the matches again based on the latest prompt value
@@ -209,6 +210,14 @@ function! s:Expression._match() abort
         " of optimisation rather than a cache
         " ^ in essence, if we have a set of results already, and those 
         " results can be deemed to be 'valid', then use them now
+
+        " TODO shouldn't check for empty here as the matching SHOULD handle
+        " empty values and not allow filering in that case
+        if !empty(self.inputchars) && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
+            call s:debug('filtering previous matches on ' . self.inputchars)
+            call filter(self.data_matches, {_,v -> v.value == self.inputchars})
+            call s:debug(self.data_matches)
+        endif
 
         return
     endif
