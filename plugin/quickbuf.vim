@@ -438,6 +438,11 @@ function! s:matchfor_filepath(results, value, opts={}) abort
     " this algorithm will work on bufitems, but needs to return
     " raw full/relataive path matches
 
+    " - every buffer will be given a score based on the matching technique
+    " - in the end, the results will be collated by 
+    "     - retrieve highest score in results
+    "     - filter and keep results that are equal to hightest score
+
     " using normal vim completion while match algo is wip
     let matches = getcompletion(a:value, 'buffer')
     if !(a:opts->get('includecurrentbuffer', 0))
