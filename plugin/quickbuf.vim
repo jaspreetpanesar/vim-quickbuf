@@ -242,19 +242,20 @@ endfunction
 
 function! s:Expression.resolve() abort
     call self._match()
+    let matches = self.data_matches
 
-    if len(self.data_matches) == 0
+    if len(matches) == 0
         throw 'no-matches-found'
     endif
 
     if self.can_multiselect()
-        let selc = self.multiselect()
+        let selc = self.multiselect(matches)
         if selc is v:null
             throw 'no-match'
         endif
     else
         " otherwise always return the top match
-        let selc = self.data_matches[0]
+        let selc = matches[0]
     endif
 
     if selc.bufnr <= 0
@@ -295,6 +296,7 @@ function! s:Expression.can_switchto() abort
 endfunction
 
 function! s:Expression.can_multiselect() abort
+    " TODO need to rethink this, we should move the len check out of here?
     return (g:QuickBuf_switch_multiselect && len(self.data_matches) > 1 ? !self.hasflag_multiselect() : self.hasflag_multiselect())
     " switch =    1   0   1   1
     " count  =    2   2   1   2
@@ -353,12 +355,9 @@ endfunction
 "--------------------------------------------------
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
-function! s:Expression.multiselect() abort
-    " TODO issue when performing this fetch, and previous results exist, then
-    " the results are being filetered on the prompt and returning 0 matches
-    " but the multiselect does not account for this
-    " solve should be to move this fetch to outside this function
-    let matches = self.fetch(len(g:QuickBuf_multiselection_keys))
+function! s:Expression.multiselect(matches) abort
+    " TODO can this be done better?
+    let matches = a:matches[:len(g:QuickBuf_multiselection_keys)]
 
     let items   = map(copy(matches), {_, v -> v.repr })
     let idlist  = map(copy(items),   {i -> g:QuickBuf_multiselection_keys[i]})
