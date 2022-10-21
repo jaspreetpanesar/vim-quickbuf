@@ -210,9 +210,10 @@ function! s:Expression._match() abort
         " ^ in essence, if we have a set of results already, and those 
         " results can be deemed to be 'valid', then use them now
 
-        " TODO shouldn't check for empty here as the matching SHOULD handle
-        " empty values and not allow filering in that case
-        if !empty(self.inputchars) && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
+        " if the previous search and current search are different (like we
+        " may be searching with an autocompleted entry) then filter - but if
+        " it's the same as before then leave matches as they are
+        if self.inputchars != self.cachectx_inputchars && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
             call s:debug('filtering previous matches on ' . self.inputchars)
             call filter(self.data_matches, {_,v -> v.value == self.inputchars})
             call s:debug(self.data_matches)
