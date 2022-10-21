@@ -28,11 +28,10 @@ let s:enum_selectionmode = {
 "--------------------------------------------------
 "   *** CONFIGURATION ***
 "--------------------------------------------------
-" TODO convert to global configurable variables
-let s:switch_windowtoggle = 0
-let s:switch_multiselect = 0
-let s:msw_selection_vals = s:c_mselvals
-let s:custom_commandname = "QuickBuffer"
+let g:QuickBuf_switch_windowtoggle = 0
+let g:QuickBuf_switch_multiselect = 0
+let g:QuickBuf_multiselection_keys = s:c_mselvals
+let g:QuickBuf_easycommandname = "QuickBuffer"
 
 "--------------------------------------------------
 "   *** GLOBALS ***
@@ -292,11 +291,11 @@ endfunction
 
 " *** Expression Controls ***
 function! s:Expression.can_switchto() abort
-    return (s:switch_windowtoggle ? !s:switch_windowtoggle : self.hasflag_windowtoggle())
+    return (g:QuickBuf_switch_windowtoggle ? !g:QuickBuf_switch_windowtoggle : self.hasflag_windowtoggle())
 endfunction
 
 function! s:Expression.can_multiselect() abort
-    return (s:switch_multiselect && len(self.data_matches) > 1 ? !self.hasflag_multiselect() : self.hasflag_multiselect())
+    return (g:QuickBuf_switch_multiselect && len(self.data_matches) > 1 ? !self.hasflag_multiselect() : self.hasflag_multiselect())
     " switch =    1   0   1   1
     " count  =    2   2   1   2
     " flag   =    1   1   1   0
@@ -341,7 +340,7 @@ function! s:Expression.hasflag_usenoname() abort
 endfunction
 
 " request current buffer not be removed from results (this does not cancel
-" mutliselect ? flag, as its meant to be used in conjunction)
+" multiselect ? flag, as its meant to be used in conjunction)
 function! s:Expression.hasflag_includecurrentbuffer() abort
     return self._flagmatch('??')
 endfunction
@@ -355,10 +354,14 @@ endfunction
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
 function! s:Expression.multiselect() abort
-    let matches = self.fetch(len(s:msw_selection_vals))
+    " TODO issue when performing this fetch, and previous results exist, then
+    " the results are being filetered on the prompt and returning 0 matches
+    " but the multiselect does not account for this
+    " solve should be to move this fetch to outside this function
+    let matches = self.fetch(len(g:QuickBuf_multiselection_keys))
 
     let items   = map(copy(matches), {_, v -> v.repr })
-    let idlist  = map(copy(items),   {i -> s:msw_selection_vals[i]})
+    let idlist  = map(copy(items),   {i -> g:QuickBuf_multiselection_keys[i]})
     let ctxlist = map(copy(items),   {_-> v:null})
 
     call s:multiselect_showlist(items, idlist, ctxlist)
@@ -719,7 +722,7 @@ command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
 
-exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '.s:custom_commandname.' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif' 
+exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '.g:QuickBuf_easycommandname.' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif' 
 
 
 " testing only
