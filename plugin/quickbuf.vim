@@ -621,16 +621,16 @@ endfunction
 "--------------------------------------------------
 "   *** Helpers ***
 "--------------------------------------------------
-function! s:goto_buffer(bnr, switchtowindow=0) abort
-    if a:switchtowindow
+function! s:goto_buffer(bnr, switchifopen=0) abort
+    if a:switchifopen
         let saved = &switchbuf
         let &switchbuf = 'useopen,usetab'
     endif
 
     try
-        exec (a:switchtowindow && !empty(win_findbuf(a:bnr)) ? 's' : '') . 'buffer ' . a:bnr
+        exec (a:switchifopen && !empty(win_findbuf(a:bnr)) ? 's' : '') . 'buffer ' . a:bnr
     catch /E86/
-        call s:show_error('could not switch to buffer ' . a:bnr)
+        call s:show_error('could not open buffer ' . a:bnr)
 
     finally
         if exists('saved')
