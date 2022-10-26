@@ -210,16 +210,26 @@ function! s:Expression._match() abort
         " ^ in essence, if we have a set of results already, and those 
         " results can be deemed to be 'valid', then use them now
 
+        " if previous results exist (and we can use the cache) and the new input 
+        " is different, then best case we probably are using one of the
+        " autocompleted results (either exactly, or partially) so try
+        " and filter to remove any of the unecessary entries
+
         " if the previous search and current search are different (like we
         " may be searching with an autocompleted entry) then filter - but if
         " it's the same as before then leave matches as they are
-        if self.inputchars != self.cachectx_inputchars && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
+        if self.inputchars != self.cachectx_inputchars
+            " \ && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
             call s:debug('filtering previous matches on ' . self.inputchars)
-            call filter(self.data_matches, {_,v -> v.value == self.inputchars})
+            call filter(self.data_matches, {_,v -> match(v.value, self.inputchars) > -1})
             call s:debug(self.data_matches)
         endif
 
-        return
+        if len(self.data_matches) > 0
+            return
+        endif
+        call s:debug('cache / filter completed with no results')
+
     endif
 
     call s:debug('generating matches')
