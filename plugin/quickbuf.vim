@@ -375,7 +375,8 @@ function! s:Expression.multiselect(matches) abort
     let ctxlist = map(copy(items),   {_-> v:null})
 
     call s:multiselect_showlist(items, idlist, ctxlist)
-    let selc = getcharstr()
+    " let selc = getcharstr()
+    let selc = nr2char(getchar())
 
     " match escape
     if match(selc, '') > -1
