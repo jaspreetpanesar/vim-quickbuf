@@ -368,7 +368,7 @@ endfunction
 "--------------------------------------------------
 function! s:Expression.multiselect(matches) abort
     " TODO can this be done better?
-    let matches = a:matches[:len(g:QuickBuf_multiselection_keys)]
+    let matches = a:matches[:len(g:QuickBuf_multiselection_keys)-1]
 
     let items   = map(copy(matches), {_, v -> v.repr })
     let idlist  = map(copy(items),   {i -> g:QuickBuf_multiselection_keys[i]})
