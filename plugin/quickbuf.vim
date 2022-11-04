@@ -23,6 +23,7 @@ let s:enum_selectionmode = {
     \ 'arglist'  : 2,
     \ 'bufnr'    : 3,
     \ 'noname'   : 4,
+    \ 'text'     : 5,
     \ }
 
 "--------------------------------------------------
@@ -208,6 +209,7 @@ function! s:Expression._match() abort
         let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
              \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
              \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
+             \ : self.hasflag_searchtext() ? s:enum_selectionmode.text
              \ : self.is_number() ? s:enum_selectionmode.bufnr
              \ : s:enum_selectionmode.filepath
 
@@ -382,6 +384,11 @@ function! s:Expression.hasflag_usevimcompletion() abort
     return self._flagmatch('\^')
 endfunction
 
+function! s:Expression.hasflag_searchtext() abort
+    " return self._flagmatch('<>')
+    return self._flagmatch('=')
+endfunction
+
 "--------------------------------------------------
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
@@ -527,13 +534,36 @@ function! s:matchfor_nonamebufs(results, value, opts={}) abort
 
 endfunction
 
+function! s:matchfor_textinbufs(results, value, opts={}) abort
+    if !empty(a:value)
+
+        " TODO use grep, rg or a combination of quickbuf list instead?
+
+        let bufs = getbufinfo({'buflisted':1})
+        let bufnr = bufnr()
+        call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != bufnr})
+
+        " TODO configurable limit
+        call filter(bufs, {_,val -> match( s:filtered_getbufline(val.bufnr, 999), a:value ) > -1})
+
+        for b in bufs
+            let bufnr = b.bufnr
+            call add(a:results, s:new_match_item(bufnr, bufnr, '[No Name #'.bufnr.']'))
+        endfor
+
+    endif
+
+
+endfunction
+
 " order as per enum_selectionmode
 let s:matchfor_func_refs = [
     \ function('s:matchfor_filepath'),
     \ function('s:matchfor_aliases'),
     \ function('s:matchfor_arglist'),
     \ function('s:matchfor_buffernumber'),
-    \ function('s:matchfor_nonamebufs')
+    \ function('s:matchfor_nonamebufs'),
+    \ function('s:matchfor_textinbufs')
     \ ]
 
 "--------------------------------------------------
