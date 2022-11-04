@@ -191,58 +191,70 @@ function! s:Expression._can_use_cache(mode)
 endfunction
 
 function! s:Expression._match() abort
-    let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
-         \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
-         \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
-         \ : self.is_number() ? s:enum_selectionmode.bufnr
-         \ : s:enum_selectionmode.filepath
 
-    " TODO should we move the mode check here?
-    if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
-        call s:debug('using cache', self.data_matches)
+    " TESTING using shellslash mode to blanket avoid issues with forward
+    " slashe pattern matching on windows
+    let slashsave = &shellslash
+    let &shellslash = 1
 
-        " TODO filter the matches again based on the latest prompt value
-        " but doing this we're basically discarding the results, is that
-        " what we want to be doing?
-        " doing it this way, we wouldn't want this system to be called
-        " 'cache', and should be moreso 'can_use_autocomplete' as a method
-        " of optimisation rather than a cache
-        " ^ in essence, if we have a set of results already, and those 
-        " results can be deemed to be 'valid', then use them now
+    while 1
+        let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
+             \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
+             \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
+             \ : self.is_number() ? s:enum_selectionmode.bufnr
+             \ : s:enum_selectionmode.filepath
 
-        " if previous results exist (and we can use the cache) and the new input 
-        " is different, then best case we probably are using one of the
-        " autocompleted results (either exactly, or partially) so try
-        " and filter to remove any of the unecessary entries
+        " TODO should we move the mode check here?
+        if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
+            call s:debug('using cache', self.data_matches)
 
-        " if the previous search and current search are different (like we
-        " may be searching with an autocompleted entry) then filter - but if
-        " it's the same as before then leave matches as they are
-        if self.inputchars != self.cachectx_inputchars
-            " \ && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
-            call s:debug('filtering previous matches on ' . self.inputchars)
-            call filter(self.data_matches, {_,v -> match(v.value, self.inputchars) > -1})
-            call s:debug(self.data_matches)
+            " TODO filter the matches again based on the latest prompt value
+            " but doing this we're basically discarding the results, is that
+            " what we want to be doing?
+            " doing it this way, we wouldn't want this system to be called
+            " 'cache', and should be moreso 'can_use_autocomplete' as a method
+            " of optimisation rather than a cache
+            " ^ in essence, if we have a set of results already, and those 
+            " results can be deemed to be 'valid', then use them now
+
+            " if previous results exist (and we can use the cache) and the new input 
+            " is different, then best case we probably are using one of the
+            " autocompleted results (either exactly, or partially) so try
+            " and filter to remove any of the unecessary entries
+
+            " if the previous search and current search are different (like we
+            " may be searching with an autocompleted entry) then filter - but if
+            " it's the same as before then leave matches as they are
+            if self.inputchars != self.cachectx_inputchars
+                " \ && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
+                call s:debug('filtering previous matches on ' . self.inputchars)
+                call filter(self.data_matches, {_,v -> match(v.value, self.inputchars) > -1})
+                call s:debug(self.data_matches)
+            endif
+
+            if len(self.data_matches) > 0
+                break
+            endif
+            call s:debug('cache / filter completed with no results')
+
         endif
 
-        if len(self.data_matches) > 0
-            return
-        endif
-        call s:debug('cache / filter completed with no results')
+        call s:debug('generating matches')
 
-    endif
+        let results = []
+        call s:matchfor_func_refs[mode](results, self.inputchars, {
+            \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
+            \ 'includedeletedbuffer': self.hasflag_bang(),
+            \ })
 
-    call s:debug('generating matches')
+        let self.cachectx_inputchars = self.inputchars
+        let self.cachectx_selectionmode = mode
+        let self.data_matches = results
 
-    let results = []
-    call s:matchfor_func_refs[mode](results, self.inputchars, {
-        \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
-        \ 'includedeletedbuffer': self.hasflag_bang(),
-        \ })
+        break
+    endwhile
 
-    let self.cachectx_inputchars = self.inputchars
-    let self.cachectx_selectionmode = mode
-    let self.data_matches = results
+    let &shellslash = slashsave
 
 endfunction
 
