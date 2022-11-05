@@ -538,17 +538,30 @@ function! s:matchfor_textinbufs(results, value, opts={}) abort
     if !empty(a:value)
 
         " TODO use grep, rg or a combination of quickbuf list instead?
+        " redir =>> out | exe "!grep -l <input> file1 file2 file3 file4 ..." | redir END
+        " redir =>> out | exe "!rg -l <input> file1 file2 file3 file4 ..." | redir END
 
+        let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
         let bufs = getbufinfo({'buflisted':1})
-        let bufnr = bufnr()
-        call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != bufnr})
+        call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr})
+        call map(bufs, {_,val -> val.name})
 
-        " TODO configurable limit
-        call filter(bufs, {_,val -> match( s:filtered_getbufline(val.bufnr, 999), a:value ) > -1})
+        let cmd = 'grep -li "' . 'todo' . '" ' . join(bufs)
+        call s:debug('grep command', cmd)
+        " redir => out
+        " call execute(cmd)
+        " redir END
+        let matches = systemlist(cmd)
 
-        for b in bufs
-            let bufnr = b.bufnr
-            call add(a:results, s:new_match_item(bufnr, bufnr, '[No Name #'.bufnr.']'))
+        " let out = split(out, '\n')
+        " call filter(out, {_,val -> !empty(val)})
+        " let matches = out[1:]
+
+        call s:debug('grep matches', matches)
+
+        for m in matches
+            let bufnr = bufnr(m)
+            call add(a:results, s:new_match_item(m, bufnr, m))
         endfor
 
     endif
