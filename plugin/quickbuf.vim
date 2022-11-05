@@ -535,15 +535,19 @@ function! s:matchfor_nonamebufs(results, value, opts={}) abort
 endfunction
 
 function! s:matchfor_textinbufs(results, value, opts={}) abort
-    if !empty(a:value)
+    " TODO determine from configured cmd, ie. cmd.split()[0]
+    if !empty(a:value) && executable('grep')
 
         let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
         let bufs = getbufinfo({'buflisted':1})
         call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr})
         call map(bufs, {_,val -> val.name})
 
+        " TODO store configurable cmd as 'grep -li %%VALUE%% %%FILEPATHS%%'
+        " and replace keys before execute
         let cmd = 'grep -li "' . a:value . '" ' . join(bufs)
         call s:debug('grep command', cmd)
+
         let matches = systemlist(cmd)
 
         call s:debug('grep matches', matches)
