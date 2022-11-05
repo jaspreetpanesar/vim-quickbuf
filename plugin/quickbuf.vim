@@ -196,6 +196,7 @@ function! s:Expression._match() abort
     " slashe pattern matching on windows
     let slashsave = &shellslash
     let &shellslash = 1
+    let userinput = s:forwardslash(self.inputchars)
 
     while 1
         let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
@@ -225,10 +226,10 @@ function! s:Expression._match() abort
             " if the previous search and current search are different (like we
             " may be searching with an autocompleted entry) then filter - but if
             " it's the same as before then leave matches as they are
-            if self.inputchars != self.cachectx_inputchars
-                " \ && match(map(copy(self.data_matches), {_,v -> v.value}), self.inputchars) >= 0
-                call s:debug('filtering previous matches on ' . self.inputchars)
-                call filter(self.data_matches, {_,v -> match(v.value, self.inputchars) > -1})
+            if userinput != self.cachectx_inputchars
+                " \ && match(map(copy(self.data_matches), {_,v -> v.value}), userinput) >= 0
+                call s:debug('filtering previous matches on ' . userinput)
+                call filter(self.data_matches, {_,v -> match(v.value, userinput) > -1})
                 call s:debug(self.data_matches)
             endif
 
@@ -242,12 +243,12 @@ function! s:Expression._match() abort
         call s:debug('generating matches')
 
         let results = []
-        call s:matchfor_func_refs[mode](results, self.inputchars, {
+        call s:matchfor_func_refs[mode](results, userinput, {
             \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
             \ 'includedeletedbuffer': self.hasflag_bang(),
             \ })
 
-        let self.cachectx_inputchars = self.inputchars
+        let self.cachectx_inputchars = userinput
         let self.cachectx_selectionmode = mode
         let self.data_matches = results
 
@@ -442,15 +443,6 @@ endfunction
 "--------------------------------------------------
 "   *** String Matching Functions ***
 "--------------------------------------------------
-" TODO BUG: on windows, paths with \ are breaking string matching for
-" filepath and arglist
-" matching can be fixed with substituting \\ with \\\\ but might need to do
-" this globally for input expression?
-"
-" a workaround might be to set shellslash while doing the string match and 
-" translating any input back slashes to forward slashes and reset setting on 
-" complete
-" ---
 
 function! s:new_match_item(val, bufnr, repr, ctx='')
     return { 'value':a:val, 'bufnr':a:bufnr, 'repr':a:repr, 'ctx':a:ctx }
@@ -490,8 +482,7 @@ endfunction
 
 function! s:matchfor_arglist(results, value, opts={}) abort
     let aglist = copy(argv())
-    let value = s:forwardslash(a:value)
-    for m in filter(aglist, {_,arg -> match(s:forwardslash(arg), value) > -1})
+    for m in filter(aglist, {_,arg -> match(arg, a:value) > -1})
         call add(a:results, s:new_match_item(m, bufnr(m), m) )
     endfor
 endfunction
