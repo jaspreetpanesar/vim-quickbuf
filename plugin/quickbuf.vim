@@ -537,25 +537,14 @@ endfunction
 function! s:matchfor_textinbufs(results, value, opts={}) abort
     if !empty(a:value)
 
-        " TODO use grep, rg or a combination of quickbuf list instead?
-        " redir =>> out | exe "!grep -l <input> file1 file2 file3 file4 ..." | redir END
-        " redir =>> out | exe "!rg -l <input> file1 file2 file3 file4 ..." | redir END
-
         let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
         let bufs = getbufinfo({'buflisted':1})
         call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr})
         call map(bufs, {_,val -> val.name})
 
-        let cmd = 'grep -li "' . 'todo' . '" ' . join(bufs)
+        let cmd = 'grep -li "' . a:value . '" ' . join(bufs)
         call s:debug('grep command', cmd)
-        " redir => out
-        " call execute(cmd)
-        " redir END
         let matches = systemlist(cmd)
-
-        " let out = split(out, '\n')
-        " call filter(out, {_,val -> !empty(val)})
-        " let matches = out[1:]
 
         call s:debug('grep matches', matches)
 
