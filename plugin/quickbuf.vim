@@ -39,6 +39,7 @@ call s:setup_config_value('switch_windowtoggle', 0)
 call s:setup_config_value('switch_multiselect',  0)
 call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
+call s:setup_config_value('grepsearch_command',  'grep -li %%SEARCH%% %%PATHS%%')
 
 "--------------------------------------------------
 "   *** GLOBALS ***
@@ -535,32 +536,33 @@ function! s:matchfor_nonamebufs(results, value, opts={}) abort
 endfunction
 
 function! s:matchfor_textinbufs(results, value, opts={}) abort
-    "let basecmd = 'grep -li %%SEARCH%% %%PATHS%%'
-    let basecmd = 'rg -l %%SEARCH%% %%PATHS%%'
-
-    if !empty(a:value) && executable(split(basecmd)[0])
-        let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
-        let bufs = getbufinfo({'buflisted':1})
-        call map(filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
-
-        if len(bufs) > 0
-            let cmd = substitute(substitute(basecmd, '%%SEARCH%%', a:value, ''), '%%PATHS%%', join(bufs), '')
-            let matches = systemlist(cmd)
-            call s:debug('grep', 'cmd', cmd, 'matches', matches)
-
-            " workaround for path style issues
-            if len(matches) > 0 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
-                call s:show_error('could not resolve paths for environment')
-                throw 'known-issue'
-            endif
-
-            for m in matches
-                let bufnr = bufnr(m)
-                call add(a:results, s:new_match_item(m, bufnr, m))
-            endfor
-
-        endif
+    let basecmd = g:QuickBuf_grepsearch_command
+    if empty(a:value) || !executable(split(basecmd)[0])
+        return
     endif
+
+    let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
+    let bufs = getbufinfo({'buflisted':1})
+    call map(filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
+
+    if !len(bufs)
+        return
+    endif
+
+    let cmd = substitute(substitute(basecmd, '%%SEARCH%%', a:value, ''), '%%PATHS%%', join(bufs), '')
+    let matches = systemlist(cmd)
+    call s:debug('grep', 'cmd', cmd, 'matches', matches)
+
+    " workaround for path style issues
+    if len(matches) > 0 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
+        call s:show_error('could not resolve paths for environment')
+        throw 'known-issue'
+    endif
+
+    for m in matches
+        let bufnr = bufnr(m)
+        call add(a:results, s:new_match_item(m, bufnr, m))
+    endfor
 
 endfunction
 
