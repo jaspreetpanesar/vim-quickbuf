@@ -554,14 +554,13 @@ function! s:matchfor_textinbufs(results, value, opts={}) abort
     call s:debug('grep', 'cmd', cmd, 'matches', matches)
 
     " workaround for path style issues
-    if len(matches) > 0 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
+    if len(matches) == 1 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
         call s:show_error('could not resolve paths for environment')
         throw 'known-issue'
     endif
 
     for m in matches
-        let bufnr = bufnr(m)
-        call add(a:results, s:new_match_item(m, bufnr, m))
+        call add(a:results, s:new_match_item(m, bufnr(m), m))
     endfor
 
 endfunction
