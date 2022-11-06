@@ -535,30 +535,32 @@ function! s:matchfor_nonamebufs(results, value, opts={}) abort
 endfunction
 
 function! s:matchfor_textinbufs(results, value, opts={}) abort
-    " TODO determine from configured cmd, ie. cmd.split()[0]
-    if !empty(a:value) && executable('grep')
+    "let basecmd = 'grep -li %%SEARCH%% %%PATHS%%'
+    let basecmd = 'rg -l %%SEARCH%% %%PATHS%%'
 
+    if !empty(a:value) && executable(split(basecmd)[0])
         let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
         let bufs = getbufinfo({'buflisted':1})
-        call filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr})
-        call map(bufs, {_,val -> val.name})
+        call map(filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
 
-        " TODO store configurable cmd as 'grep -li %%VALUE%% %%FILEPATHS%%'
-        " and replace keys before execute
-        let cmd = 'grep -li "' . a:value . '" ' . join(bufs)
-        call s:debug('grep command', cmd)
+        if len(bufs) > 0
+            let cmd = substitute(substitute(basecmd, '%%SEARCH%%', a:value, ''), '%%PATHS%%', join(bufs), '')
+            let matches = systemlist(cmd)
+            call s:debug('grep', 'cmd', cmd, 'matches', matches)
 
-        let matches = systemlist(cmd)
+            " workaround for path style issues
+            if len(matches) > 0 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
+                call s:show_error('could not resolve paths for environment')
+                throw 'known-issue'
+            endif
 
-        call s:debug('grep matches', matches)
+            for m in matches
+                let bufnr = bufnr(m)
+                call add(a:results, s:new_match_item(m, bufnr, m))
+            endfor
 
-        for m in matches
-            let bufnr = bufnr(m)
-            call add(a:results, s:new_match_item(m, bufnr, m))
-        endfor
-
+        endif
     endif
-
 
 endfunction
 
@@ -593,7 +595,7 @@ function! s:pub_prompt() abort
             call s:show_error('could not find any matches')
         catch /buffer-not-exists/
             call s:show_error('selected buffer could not be switched to')
-        catch /invalid-selection-input\|no-match/
+        catch /invalid-selection-input\|no-match\|known-issue/
             " do nothing, re-runprompt
         endtry
     endwhile
