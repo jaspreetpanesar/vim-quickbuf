@@ -752,7 +752,9 @@ function! s:isnumber(val)
     return match(a:val, '[^[:digit:]]') == -1
 endfunction
 
-if 0
+let s:debug_enabled = 2
+if s:debug_enabled == 0
+elseif s:debug_enabled == 1
     function! s:debug(...)
         echo "\n-----DEBUG~PAUSE-----"
         for msg in a:000
@@ -761,7 +763,7 @@ if 0
         echo '---------------------'
         call getchar()
     endfunction
-else
+elseif s:debug_enabled == 2
     let s:debuglog = []
     function! s:debug(...)
         for msg in a:000
