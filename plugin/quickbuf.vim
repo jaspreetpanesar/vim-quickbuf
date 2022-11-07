@@ -28,10 +28,16 @@ let s:enum_selectionmode = {
 "--------------------------------------------------
 "   *** CONFIGURATION ***
 "--------------------------------------------------
-let g:QuickBuf_switch_windowtoggle = 0
-let g:QuickBuf_switch_multiselect = 0
-let g:QuickBuf_multiselection_keys = s:c_mselvals
-let g:QuickBuf_easycommandname = "QuickBuffer"
+function! s:setup_config_value(varname, default)
+    let varname = 'QuickBuf_'.a:varname
+    let val = get(g:, varname, a:default)
+    exe "let g:".varname." = '".val."'"
+endfunction
+
+call s:setup_config_value('switch_windowtoggle', 0)
+call s:setup_config_value('switch_multiselect',  0)
+call s:setup_config_value('multiselection_keys', s:c_mselvals)
+call s:setup_config_value('easycommandname',     'QuickBuffer')
 
 "--------------------------------------------------
 "   *** GLOBALS ***
