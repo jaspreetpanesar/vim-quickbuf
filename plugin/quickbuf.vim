@@ -23,7 +23,8 @@ let s:enum_selectionmode = {
     \ 'arglist'  : 2,
     \ 'bufnr'    : 3,
     \ 'noname'   : 4,
-    \ 'text'     : 5,
+    \ 'textmatch': 5,
+    \ 'fzf'      : 6,
     \ }
 
 "--------------------------------------------------
@@ -211,7 +212,8 @@ function! s:Expression._match() abort
         let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
              \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
              \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
-             \ : self.hasflag_searchtext() ? s:enum_selectionmode.text
+             \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
+             \ : self.hasflag_usefzf() ? s:enum_selectionmode.fzf
              \ : self.is_number() ? s:enum_selectionmode.bufnr
              \ : s:enum_selectionmode.filepath
 
@@ -393,6 +395,10 @@ function! s:Expression.hasflag_searchtext() abort
     return self._flagmatch('=')
 endfunction
 
+function! s:Expression.hasflag_usefzf() abort
+    return self._flagmatch('<>')
+endfunction
+
 "--------------------------------------------------
 "   *** Expression Engine : Multiselection ***
 "--------------------------------------------------
@@ -540,7 +546,13 @@ endfunction
 
 function! s:matchfor_textinbufs(results, value, opts={}) abort
     let basecmd = g:QuickBuf_grepsearch_command
-    if empty(a:value) || !executable(split(basecmd)[0])
+    let excmd = split(basecmd)[0]
+    if !executable(excmd)
+        call s:show_error(excmd . ' cannot be found')
+        throw 'terminate'
+    endif
+
+    if empty(a:value)
         return
     endif
 
@@ -568,6 +580,33 @@ function! s:matchfor_textinbufs(results, value, opts={}) abort
 
 endfunction
 
+
+function! s:matchfor_fzfbuffers(results, value, opts={}) abort
+    if !executable('fzf')
+        call s:show_error('fzf cannot be found')
+        throw 'terminate'
+    endif
+
+    let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
+    let bufs = getbufinfo({'buflisted':1})
+    call map(filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
+
+    if !len(bufs)
+        return
+    endif
+
+    let paths = join(bufs, "\n")
+    let cmd = 'echo "' . paths . '" | fzf -f "' . a:value . '"'
+    let matches = systemlist(cmd)
+    call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
+
+    for m in matches
+        call add(a:results, s:new_match_item(m, bufnr(m), m))
+    endfor
+
+endfunction
+
+
 " order as per enum_selectionmode
 let s:matchfor_func_refs = [
     \ function('s:matchfor_filepath'),
@@ -575,7 +614,8 @@ let s:matchfor_func_refs = [
     \ function('s:matchfor_arglist'),
     \ function('s:matchfor_buffernumber'),
     \ function('s:matchfor_nonamebufs'),
-    \ function('s:matchfor_textinbufs')
+    \ function('s:matchfor_textinbufs'),
+    \ function('s:matchfor_fzfbuffers')
     \ ]
 
 "--------------------------------------------------
@@ -599,7 +639,7 @@ function! s:pub_prompt() abort
             call s:show_error('could not find any matches')
         catch /buffer-not-exists/
             call s:show_error('selected buffer could not be switched to')
-        catch /invalid-selection-input\|no-match\|known-issue/
+        catch /invalid-selection-input\|no-match\|known-issue\|terminate/
             " do nothing, re-runprompt
         endtry
     endwhile
