@@ -40,6 +40,7 @@ call s:setup_config_value('switch_multiselect',  0)
 call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
 call s:setup_config_value('grepsearch_command',  'grep -li %%SEARCH%% %%PATHS%%')
+call s:setup_config_value('debug', 2)
 
 "--------------------------------------------------
 "   *** GLOBALS ***
@@ -256,6 +257,8 @@ function! s:Expression._match() abort
             \ 'includecurrentbuffer': self.hasflag_includecurrentbuffer(),
             \ 'includedeletedbuffer': self.hasflag_bang(),
             \ })
+
+        call s:debug('selection mode = '.mode, results)
 
         let self.cachectx_inputchars = userinput
         let self.cachectx_selectionmode = mode
@@ -551,7 +554,7 @@ function! s:matchfor_textinbufs(results, value, opts={}) abort
 
     let cmd = substitute(substitute(basecmd, '%%SEARCH%%', a:value, ''), '%%PATHS%%', join(bufs), '')
     let matches = systemlist(cmd)
-    call s:debug('grep', 'cmd', cmd, 'matches', matches)
+    call s:debug(cmd, 'grep-matches='.string(matches), 'grep-buflist='.string(bufs))
 
     " workaround for path style issues
     if len(matches) == 1 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
@@ -752,9 +755,8 @@ function! s:isnumber(val)
     return match(a:val, '[^[:digit:]]') == -1
 endfunction
 
-let s:debug_enabled = 2
-if s:debug_enabled == 0
-elseif s:debug_enabled == 1
+if g:QuickBuf_debug == 0
+elseif g:QuickBuf_debug == 1
     function! s:debug(...)
         echo "\n-----DEBUG~PAUSE-----"
         for msg in a:000
@@ -763,7 +765,7 @@ elseif s:debug_enabled == 1
         echo '---------------------'
         call getchar()
     endfunction
-elseif s:debug_enabled == 2
+elseif g:QuickBuf_debug == 2
     let s:debuglog = []
     function! s:debug(...)
         for msg in a:000
