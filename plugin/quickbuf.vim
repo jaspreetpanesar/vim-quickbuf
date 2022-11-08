@@ -213,9 +213,9 @@ function! s:Expression._match() abort
              \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
              \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
              \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
-             \ : self.hasflag_altmatch() ? s:enum_selectionmode.fzf
+             \ : self.hasflag_altmatch() ? s:enum_selectionmode.filepath
              \ : self.is_number() ? s:enum_selectionmode.bufnr
-             \ : s:enum_selectionmode.filepath
+             \ : s:enum_selectionmode.fzf
 
         " TODO should we move the mode check here?
         if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
