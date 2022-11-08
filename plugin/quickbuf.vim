@@ -213,7 +213,7 @@ function! s:Expression._match() abort
              \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
              \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
              \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
-             \ : self.hasflag_usefzf() ? s:enum_selectionmode.fzf
+             \ : self.hasflag_altmatch() ? s:enum_selectionmode.fzf
              \ : self.is_number() ? s:enum_selectionmode.bufnr
              \ : s:enum_selectionmode.filepath
 
@@ -391,11 +391,10 @@ function! s:Expression.hasflag_usevimcompletion() abort
 endfunction
 
 function! s:Expression.hasflag_searchtext() abort
-    " return self._flagmatch('<>')
     return self._flagmatch('=')
 endfunction
 
-function! s:Expression.hasflag_usefzf() abort
+function! s:Expression.hasflag_altmatch() abort
     return self._flagmatch('<>')
 endfunction
 
@@ -546,9 +545,9 @@ endfunction
 
 function! s:matchfor_textinbufs(results, value, opts={}) abort
     let basecmd = g:QuickBuf_grepsearch_command
-    let excmd = split(basecmd)[0]
+    let excmd = split(basecmd)->get(0)
     if !executable(excmd)
-        call s:show_error(excmd . ' cannot be found')
+        call s:show_error(excmd . ' executable cannot be found')
         throw 'terminate'
     endif
 
@@ -583,25 +582,46 @@ endfunction
 
 function! s:matchfor_fzfbuffers(results, value, opts={}) abort
     if !executable('fzf')
-        call s:show_error('fzf cannot be found')
+        call s:show_error('fzf executable cannot be found')
         throw 'terminate'
     endif
 
     let mybufnr = a:opts->get('includecurrentbuffer', 0) ? v:null : bufnr()
-    let bufs = getbufinfo({'buflisted':1})
-    call map(filter(bufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
+    let allbufs = getbufinfo({'buflisted':1})
+    call map(filter(allbufs, {_,val -> !empty(val.name) && val.bufnr != mybufnr}), {_,val -> val.name})
 
-    if !len(bufs)
+    if !len(allbufs)
         return
     endif
 
-    let paths = join(bufs, "\n")
-    let cmd = 'echo "' . paths . '" | fzf -f "' . a:value . '"'
-    let matches = systemlist(cmd)
-    call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
+    " convert to relative paths to current directory (ie. short path)
+    let bufs = map(copy(allbufs), {_,val -> fnamemodify(val, ':.')})
+
+    let trycount = 1
+    while 1
+        let paths = join(bufs, "\n")
+        let cmd = 'echo "' . paths . '" | fzf -f "' . a:value . '"'
+        let matches = systemlist(cmd)
+        call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
+
+        if !empty(matches)
+            break
+        elseif trycount == 1
+            " if no matches the first time, try again with full path
+            let bufs = allbufs
+            call s:debug('retrying with full paths')
+        else
+            return
+        endif
+
+        let trycount += 1
+
+    endwhile
 
     for m in matches
-        call add(a:results, s:new_match_item(m, bufnr(m), m))
+        " we want to show the result as the short path
+        let short = fnamemodify(m, ':.')
+        call add(a:results, s:new_match_item(short, bufnr(m), short))
     endfor
 
 endfunction
