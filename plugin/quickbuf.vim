@@ -41,7 +41,7 @@ call s:setup_config_value('switch_multiselect',  0)
 call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
 call s:setup_config_value('grepsearch_command',  'grep -li %%SEARCH%% %%PATHS%%')
-call s:setup_config_value('debug', 2)
+call s:setup_config_value('debug', 0)
 
 "--------------------------------------------------
 "   *** GLOBALS ***
@@ -818,7 +818,9 @@ function! s:systemcall(cmd, items)
 
     " https://vi.stackexchange.com/a/22684
     let tfile = tempname()
-    call writefile(a:items, tfile, 'a')
+    call writefile(a:items, tfile, 'S')
+    " TODO or just use 'echo "filename\nfilename"' if
+    " result set < 10
 
     " support win/unix shells
     if &shell =~? 'cmd.exe'
@@ -845,6 +847,8 @@ function! s:systemcall(cmd, items)
 endfunction
 
 if g:QuickBuf_debug == 0
+    function! s:debug(...)
+    endfunction
 elseif g:QuickBuf_debug == 1
     function! s:debug(...)
         echo "\n-----DEBUG~PAUSE-----"
