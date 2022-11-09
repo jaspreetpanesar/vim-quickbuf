@@ -567,12 +567,6 @@ function! s:matchfor_textinbufs(results, value, opts={}) abort
     let matches = systemlist(cmd)
     call s:debug(cmd, 'grep-matches='.string(matches), 'grep-buflist='.string(bufs))
 
-    " workaround for path style issues
-    if len(matches) == 1 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
-        call s:show_error('could not resolve paths for environment')
-        throw 'known-issue'
-    endif
-
     for m in matches
         call add(a:results, s:new_match_item(m, bufnr(m), m))
     endfor
@@ -599,9 +593,8 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
 
     let trycount = 1
     while 1
-        let paths = join(bufs, "\n")
-        let cmd = 'echo ' . paths . ' | fzf -f "' . a:value . '"'
-        let matches = systemlist(cmd)
+        let cmd = 'fzf -i -f "' . a:value . '"'
+        let matches = s:systemcall(cmd, bufs)
         call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
 
         if !empty(matches)
@@ -659,7 +652,7 @@ function! s:pub_prompt() abort
             call s:show_error('could not find any matches')
         catch /buffer-not-exists/
             call s:show_error('selected buffer could not be switched to')
-        catch /invalid-selection-input\|no-match\|known-issue\|terminate/
+        catch /invalid-selection-input\|no-match\|terminate/
             " do nothing, re-runprompt
         endtry
     endwhile
@@ -798,6 +791,10 @@ function! s:forwardslash(path)
     return substitute(a:path, '\', '/', 'g')
 endfunction
 
+function! s:backslash(path)
+    return substitute(a:path, '/', '\', 'g')
+endfunction
+
 " returns the specified amount of lines starting from the first
 " non-blank line
 function! s:filtered_getbufline(bufnr, max)
@@ -815,31 +812,34 @@ function! s:isnumber(val)
     return match(a:val, '[^[:digit:]]') == -1
 endfunction
 
-" items = string array
-" seperator = \n or ' '
-" cmd = full command to run with a %%ITEMS%% key
-" bubble = re-run command with the results of each pass
-" function! s:systemcall(items, seperator, cmd, bubble=0)
 function! s:systemcall(cmd, items)
-    " TODO issue: command line is too long
-    " can use a combination of tempname() and pipe (|) which works both for
-    " unix and cmd shells. With cat on bash, and type on windows to read
-    " and pipe buffer lists to fzf or rg commands
-    " this way, the separator and bubble system of this func won't be
-    " needed
-    "   type tempfile | fzf -i -f "prompt"
-    "   cat tempfile | rg -i "prompt"
-    " https://vi.stackexchange.com/a/22684
+    " store buffers to search in a tempfile to solve for issue where
+    " a large buffer list causes a command too long error
 
-    " store buffers to search in a tempfile
+    " https://vi.stackexchange.com/a/22684
     let tfile = tempname()
-    call writefile(join(a:list, "\n"), tfile)
+    call writefile(a:items, tfile, 'a')
+
+    " support win/unix shells
+    if &shell =~? 'cmd.exe'
+        let prefix = 'type ' . s:backslash(tfile)
+    else
+        let prefix = 'cat ' . tfile
+    endif
 
     " pipe buffers from tempfile into provided cmd
-    let cmd = join([(&shell ==~ 'cmd.exe' ? 'type' : 'cat'), tfile, '|', a:cmd], ' ')
+    let cmd = join([prefix, '|', a:cmd], ' ')
     let matches = systemlist(cmd)
-    delete(tfile)
 
+    call s:debug(cmd, tfile, matches)
+
+    " workaround for path style issues
+    if len(matches) == 1 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
+        call s:show_error('could not resolve paths for environment')
+        throw 'terminate'
+    endif
+
+    call delete(tfile)
     return matches
 
 endfunction
