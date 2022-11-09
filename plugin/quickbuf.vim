@@ -600,7 +600,7 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
     let trycount = 1
     while 1
         let paths = join(bufs, "\n")
-        let cmd = 'echo "' . paths . '" | fzf -f "' . a:value . '"'
+        let cmd = 'echo ' . paths . ' | fzf -f "' . a:value . '"'
         let matches = systemlist(cmd)
         call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
 
@@ -813,6 +813,35 @@ endfunction
 
 function! s:isnumber(val)
     return match(a:val, '[^[:digit:]]') == -1
+endfunction
+
+" items = string array
+" seperator = \n or ' '
+" cmd = full command to run with a %%ITEMS%% key
+" bubble = re-run command with the results of each pass
+" function! s:systemcall(items, seperator, cmd, bubble=0)
+function! s:systemcall(cmd, items)
+    " TODO issue: command line is too long
+    " can use a combination of tempname() and pipe (|) which works both for
+    " unix and cmd shells. With cat on bash, and type on windows to read
+    " and pipe buffer lists to fzf or rg commands
+    " this way, the separator and bubble system of this func won't be
+    " needed
+    "   type tempfile | fzf -i -f "prompt"
+    "   cat tempfile | rg -i "prompt"
+    " https://vi.stackexchange.com/a/22684
+
+    " store buffers to search in a tempfile
+    let tfile = tempname()
+    call writefile(join(a:list, "\n"), tfile)
+
+    " pipe buffers from tempfile into provided cmd
+    let cmd = join([(&shell ==~ 'cmd.exe' ? 'type' : 'cat'), tfile, '|', a:cmd], ' ')
+    let matches = systemlist(cmd)
+    delete(tfile)
+
+    return matches
+
 endfunction
 
 if g:QuickBuf_debug == 0
