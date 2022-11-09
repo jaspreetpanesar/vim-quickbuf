@@ -416,21 +416,27 @@ function! s:Expression.multiselect(matches) abort
     " match escape
     if match(selc, '') > -1
         throw 'exit-requested'
-    endif
 
-    " then sanitise all non-printable charcters (\p) and whitespace
-    " (need to discard whole string when non-printables found, as keys like
-    "  backspace <80>kb etc can also contain printables chars)
-    let selc = match(selc, '[^[:print:]]\|\s') > -1 ? '' : selc
-    if empty(selc)
-        throw 'invalid-selection-input'
-    endif
+    elseif match(selc, '') > -1
+        " return/enter key will pick the first selection
+        let idx = 0
 
-    " try match the request
-    let idx = match(idlist, selc)
-    if idx == -1
-        let self.data_prefill = selc
-        return v:null
+    else
+        " then sanitise all non-printable charcters (\p) and whitespace
+        " (need to discard whole string when non-printables found, as keys like
+        "  backspace <80>kb etc can also contain printables chars)
+        let selc = match(selc, '[^[:print:]]\|\s') > -1 ? '' : selc
+        if empty(selc)
+            throw 'invalid-selection-input'
+        endif
+
+        " try match the request
+        let idx = match(idlist, selc)
+        if idx == -1
+            let self.data_prefill = selc
+            return v:null
+        endif
+
     endif
 
     " hides the message display helper (press key to continue) on
