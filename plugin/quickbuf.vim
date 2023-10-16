@@ -273,6 +273,13 @@ function! s:Expression._match() abort
 
 endfunction
 
+function! s:Expression._score(matches) abort
+    " TODO determine if/which scoring to use
+    " probs w/ config vars than prompt flags
+    return s:score_analogouspath(a:matches, {'case_insensitive':1})
+    return 0
+endfunction
+
 function! s:Expression._promptstr() abort
     " TODO use global switches to generate
     return '>> '
@@ -284,6 +291,13 @@ function! s:Expression.resolve() abort
 
     if len(matches) == 0
         throw 'no-matches-found'
+    endif
+
+    if self._score(matches)
+        call s:debug("before sort", matches)
+        " then sort by the scored values (desc)
+        call sort(matches, {a,b -> a.score < b.score ? 1 : a.score > b.score ? -1 : 0})
+        call s:debug("after sort", matches)
     endif
 
     if self.can_multiselect()
@@ -473,7 +487,7 @@ endfunction
 "--------------------------------------------------
 
 function! s:new_match_item(val, bufnr, repr, ctx='')
-    return { 'value':a:val, 'bufnr':a:bufnr, 'repr':a:repr, 'ctx':a:ctx }
+    return { 'value':a:val, 'bufnr':a:bufnr, 'repr':a:repr, 'ctx':a:ctx, 'score':0 }
 endfu
 
 function! s:matchfor_filepath(results, value, opts={}) abort
@@ -636,6 +650,47 @@ let s:matchfor_func_refs = [
     \ function('s:matchfor_textinbufs'),
     \ function('s:matchfor_fzfbuffers')
     \ ]
+
+"--------------------------------------------------
+"   *** Match Scoring Functions ***
+"--------------------------------------------------
+
+function! s:score_analogouspath(matches, opts={}) abort
+    let cpath = expand("%:p")
+    if empty(cpath)
+        return 0
+    endif
+
+    let cis = get(a:opts, 'case_insensitive', 0)
+    if cis
+        let cpath = tolower(cpath)
+    endif
+    let slash = &shellslash ? '/' : '\'
+
+    " remove the filename from paths
+    let ma = split(cpath, slash, 0)[:-2]
+    for mx in a:matches
+        let mb = expand('#'.mx.bufnr.':p')
+        if cis
+            let mb = tolower(mb)
+        endif
+        let mb = split(mb, slash, 0)[:-2]
+        let i = 0
+        let length = min([len(ma), len(mb)])
+        call s:debug(ma,mb)
+        while i<length
+            if ma[i] == mb[i]
+                let mx.score += 1
+                let i += 1
+            else
+                break
+            endif
+        endwhile
+        call s:debug("score", mx.repr, mx.score)
+    endfor
+    return 1
+
+endfunction
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
