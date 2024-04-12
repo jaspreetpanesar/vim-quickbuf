@@ -941,14 +941,15 @@ command! QBPrompt call s:pub_prompt()
 
 exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '.g:QuickBuf_easycommandname.' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif' 
 
-
 " testing only
-ca QBAA QBAliasAdd
-ca QBAR QBAliasRemove
-ca QBAL QBAliasList
-ca QBP QBPrompt
-command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
-nnoremap <space><space> :Quick<cr>
+if g:QuickBuf_debug
+    ca QBAA QBAliasAdd
+    ca QBAR QBAliasRemove
+    ca QBAL QBAliasList
+    ca QBP QBPrompt
+    command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
+    nnoremap <space><space> :Quick<cr>
+endif
 
 call s:alias_deserialise()
 
