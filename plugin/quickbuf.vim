@@ -41,6 +41,7 @@ call s:setup_config_value('switch_multiselect',  0)
 call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
 call s:setup_config_value('grepsearch_command',  'rg -li %%SEARCH%%')
+call s:setup_config_value('resultscoring', 1)
 call s:setup_config_value('debug', 0)
 
 "--------------------------------------------------
@@ -152,7 +153,7 @@ function! s:Expression._build(expr) abort
     " otherwise use best guess filepath matching as before. this match
     " limits filename character scope to alphanumeric, some filepath
     " chars and standard path characters
-    if pos[1] == -1 
+    if pos[1] == -1
         let pos = matchstrpos(a:expr, '[a-zA-Z0-9\._\-%\/:~]\+')
     endif
 
@@ -227,10 +228,10 @@ function! s:Expression._match() abort
             " doing it this way, we wouldn't want this system to be called
             " 'cache', and should be moreso 'can_use_autocomplete' as a method
             " of optimisation rather than a cache
-            " ^ in essence, if we have a set of results already, and those 
+            " ^ in essence, if we have a set of results already, and those
             " results can be deemed to be 'valid', then use them now
 
-            " if previous results exist (and we can use the cache) and the new input 
+            " if previous results exist (and we can use the cache) and the new input
             " is different, then best case we probably are using one of the
             " autocompleted results (either exactly, or partially) so try
             " and filter to remove any of the unecessary entries
@@ -274,9 +275,11 @@ function! s:Expression._match() abort
 endfunction
 
 function! s:Expression._score(matches) abort
-    " TODO determine if/which scoring to use
-    " probs w/ config vars than prompt flags
-    return s:score_analogouspath(a:matches, {'case_insensitive':1})
+    if g:QuickBuf_resultscoring
+        call s:score_resultsorder(a:matches, {})
+        call s:score_analogouspath(a:matches, {'case_insensitive':1})
+        return 1
+    endif
     return 0
 endfunction
 
@@ -325,7 +328,7 @@ endfunction
 
 function! s:Expression.prompt() abort
     " https://github.com/neovim/neovim/issues/16301
-    " the definition needs to be an existing ref rather than a new lambda in 
+    " the definition needs to be an existing ref rather than a new lambda in
     " this one line as the gb-collector will immediatly destroy it
     let expr = input(self._promptstr(), self.data_prefill, 'customlist,'.get(s:CompleteFuncLambdaWrapper, 'name'))
     let self.data_prefill = ''
@@ -499,7 +502,7 @@ function! s:matchfor_filepath(results, value, opts={}) abort
     " raw full/relataive path matches
 
     " - every buffer will be given a score based on the matching technique
-    " - in the end, the results will be collated by 
+    " - in the end, the results will be collated by
     "     - retrieve highest score in results
     "     - filter and keep results that are equal to hightest score
 
@@ -531,7 +534,7 @@ endfunction
 
 function! s:matchfor_buffernumber(results, value, opts={}) abort
     let FuncRef = a:opts->get('includedeletedbuffer', 0) ? function('bufexists') : function('buflisted')
-    if FuncRef(str2nr(a:value)) 
+    if FuncRef(str2nr(a:value))
         call add(a:results, s:new_match_item(a:value, a:value, a:value))
     endif
 endfunction
@@ -656,6 +659,8 @@ let s:matchfor_func_refs = [
 "--------------------------------------------------
 
 function! s:score_analogouspath(matches, opts={}) abort
+    " scores 1 for each path dir that matches the
+    " current buffer
     let cpath = expand("%:p")
     if empty(cpath)
         return 0
@@ -692,6 +697,19 @@ function! s:score_analogouspath(matches, opts={}) abort
 
 endfunction
 
+function! s:score_resultsorder(matches, opts={}) abort
+    " TODO delta of scores eq to number of matches
+    " low match count = low delta / high match...
+    let [a, b, i, l] = [1, 1.1, 0, len(a:matches)]
+    while i < l
+        " y = a/(i+b)*b
+        " y = a/i**b*l
+        let a:matches[i].score = float2nr(floor(a/pow(i,b)*l))
+        let i += 1
+    endwhile
+    return 1
+endfunction
+
 "--------------------------------------------------
 "   *** Plugin Interaction ***
 "--------------------------------------------------
@@ -726,7 +744,7 @@ endfunction
 " TODO looks like this has been broken for a whlie?
 function! s:pub_list(expr) abort
     " show result based on provided expr
-    " ie. same as running prompt with flag ? and without the prompt 
+    " ie. same as running prompt with flag ? and without the prompt
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
     let matches = s:Expression.fetch()
@@ -939,7 +957,11 @@ command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
 
-exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '.g:QuickBuf_easycommandname.' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif' 
+exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '..
+    \ g:QuickBuf_easycommandname..
+    \ ' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif'
+
+call s:alias_deserialise()
 
 " testing only
 if g:QuickBuf_debug
@@ -950,7 +972,4 @@ if g:QuickBuf_debug
     command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper B call s:pub_less(<q-args>)
     nnoremap <space><space> :Quick<cr>
 endif
-
-call s:alias_deserialise()
-
 
