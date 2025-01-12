@@ -978,14 +978,15 @@ if g:QuickBuf_alias_maps
         for [a,b] in s:aliases->items()
             if b==c
                 if confirm('remove alias "'..a..'"?', "&Yes", 1)
+                    redraw
                     call s:alias_remove(a)
                 endif
                 return
             endif
         endfor
         let res = input('add alias: !')
-        echo " "
-        call s:alias_add(res, c, 1)
+        redraw
+        call s:alias_add(res, c)
     endfu
     nnoremap <leader># <cmd>call <sid>alias_toggle()<cr>
 
