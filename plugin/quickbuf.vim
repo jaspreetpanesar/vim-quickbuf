@@ -42,6 +42,7 @@ call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
 call s:setup_config_value('grepsearch_command',  'rg -li %%SEARCH%%')
 call s:setup_config_value('resultscoring', 1)
+call s:setup_config_value('alias_maps', 0)
 call s:setup_config_value('debug', 0)
 
 "--------------------------------------------------
@@ -520,7 +521,9 @@ function! s:matchfor_filepath(results, value, opts={}) abort
 endfunction
 
 function! s:matchfor_aliases(results, value, opts={}) abort
-    for m in filter(keys(s:aliases), {_,val -> val =~? a:value})
+    let mybufnr = bufnr()
+    let icb = a:opts->get('includecurrentbuffer', 0)
+    for m in filter(keys(s:aliases), {_,val -> val =~? a:value && (icb || s:aliases[val] != mybufnr)})
         call add(a:results, s:new_match_item(m, s:aliases[m], m) )
     endfor
 endfunction
@@ -770,13 +773,15 @@ endfunction
 "--------------------------------------------------
 "   *** Aliases ***
 "--------------------------------------------------
-function! s:alias_add(name, bufnr) abort
+function! s:alias_add(name, bufnr, silent=0) abort
     if match(a:name, '[^a-zA-Z0-9]') > -1
         call s:show_error('alias name invalid - must be alphanumeric characters only')
     else
         let s:aliases[a:name] = a:bufnr
         call s:alias_serialise()
-        echo "alias added '" . a:name . "'"
+        if !a:silent
+            echo "alias added '" . a:name . "'"
+        endif
     endif
 endfunction
 
@@ -789,6 +794,13 @@ function! s:alias_remove(name) abort
         call s:show_error('alias "' . a:name . '" does not exist')
     endif
 endfunction
+
+
+" TODO store buffer filepaths instead (on searlise/desearlise only, and
+" rebuild on session load to buff numbers, removing any aliases that were not
+" real files, ie. have no matches anymore)
+"   ^ or only serialise real file buffers
+" This way aliases can be stored in sessions
 
 " TODO call this on BufDelete
 function! s:alias_serialise() abort
@@ -956,6 +968,28 @@ command! -nargs=1 -complete=customlist,s:complete_aliases QBAliasRemove call s:a
 command! -nargs=* QBList call s:pub_list(<q-args>)
 command! -nargs=+ -complete=customlist,s:CompleteFuncWrapper QBLess call s:pub_less(<q-args>)
 command! QBPrompt call s:pub_prompt()
+
+if g:QuickBuf_alias_maps
+    " exe 'nnoremap # <cmd>QBPrompt<cr>'..(g:QuickBuf_switch_multiselect ? '' : '?')..'#'
+    nnoremap # <cmd>QBPrompt<cr>#
+
+    fu! s:alias_toggle() abort
+        let c = bufnr()
+        for [a,b] in s:aliases->items()
+            if b==c
+                if confirm('remove alias "'..a..'"?', "&Yes", 1)
+                    call s:alias_remove(a)
+                endif
+                return
+            endif
+        endfor
+        let res = input('add alias: !')
+        echo " "
+        call s:alias_add(res, c, 1)
+    endfu
+    nnoremap <leader># <cmd>call <sid>alias_toggle()<cr>
+
+endif
 
 exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '..
     \ g:QuickBuf_easycommandname..
