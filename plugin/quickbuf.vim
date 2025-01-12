@@ -774,15 +774,16 @@ endfunction
 "   *** Aliases ***
 "--------------------------------------------------
 function! s:alias_add(name, bufnr, silent=0) abort
-    if !(a:name->substitute('\v^\s*|\s*$', '', 'g')->len())
+    let name = substitute(a:name, '\v^\s*|\s*$', '', 'g')
+    if !len(name)
         call s:show_error('no alias name provided')
-    elseif match(a:name, '[^a-zA-Z0-9]') > -1
+    elseif match(name, '[^a-zA-Z0-9]') > -1
         call s:show_error('alias name invalid - must be alphanumeric characters only')
     else
-        let s:aliases[a:name] = a:bufnr
+        let s:aliases[name] = a:bufnr
         call s:alias_serialise()
         if !a:silent
-            echo "alias added '" . a:name . "'"
+            echo "alias added '" . name . "'"
         endif
     endif
 endfunction
