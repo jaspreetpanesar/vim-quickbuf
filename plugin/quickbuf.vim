@@ -987,7 +987,7 @@ if g:QuickBuf_alias_maps
                 return
             endif
         endfor
-        let res = input('add alias: !')
+        let res = input('add alias: #')
         redraw
         call s:alias_add(res, c)
     endfu
