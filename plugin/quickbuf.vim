@@ -713,6 +713,25 @@ function! s:score_resultsorder(matches, opts={}) abort
     return 1
 endfunction
 
+" todo recency modifier
+" ie. give more weight to files recently selected
+" than those that weren't when similar files
+" are returned
+"
+"   instead of a recent 'score' (ie. 1 + 1, etc) we could
+"   use a time_since_navigated score
+"   and this val is set on BufEnter not on change of this
+"   plugin.
+"   THEN we could also have a selection_score which marks
+"   a good job when user selects the file that was top of
+"   the time_since_navigated list, as positive reinforcement
+"
+" possible inspo: recency boost for obsidian ominisearch plugin
+"
+function! s:score_recency(matches, opts={}) abort
+    return 1
+endfunction
+
 "--------------------------------------------------
 "   *** Plugin Interaction ***
 "--------------------------------------------------
