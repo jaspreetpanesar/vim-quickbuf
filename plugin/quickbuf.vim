@@ -10,6 +10,10 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
+
+" todo remove me
+let g:QuickBuf_alias_maps = 1
+
 "--------------------------------------------------
 "   *** CONSTANTS ***
 "--------------------------------------------------
@@ -728,6 +732,11 @@ endfunction
 "
 " possible inspo: recency boost for obsidian ominisearch plugin
 "
+" todo:
+"   create autocmd BufEnter that creates or sets a var
+"     b:last_visisted to reltime()?
+"   then use this buffer to check recency
+
 function! s:score_recency(matches, opts={}) abort
     return 1
 endfunction
