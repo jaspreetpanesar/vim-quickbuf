@@ -10,10 +10,6 @@ if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
 endif
 let g:loaded_quickbuf = 1
 
-
-" todo remove me
-let g:QuickBuf_alias_maps = 1
-
 "--------------------------------------------------
 "   *** CONSTANTS ***
 "--------------------------------------------------
