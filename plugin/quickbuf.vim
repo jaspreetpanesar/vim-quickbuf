@@ -6,7 +6,7 @@
 " Licence:     This file is placed in the public domain.
 
 if v:version < 700 || &compatible || exists("g:loaded_quickbuf")
-    " finish
+    finish
 endif
 let g:loaded_quickbuf = 1
 
@@ -26,6 +26,9 @@ let s:enum_selectionmode = {
     \ 'textmatch': 5,
     \ 'fzf'      : 6,
     \ }
+
+" todo: w/ flag * get results from :find as well
+" and show confirmation w/ to open the new buf
 
 "--------------------------------------------------
 "   *** CONFIGURATION ***
@@ -50,74 +53,6 @@ call s:setup_config_value('debug', 0)
 "--------------------------------------------------
 let s:aliases = {}
 let s:buffercache = []
-
-""--------------------------------------------------
-""   *** Buffer Context Items ***
-""--------------------------------------------------
-"let s:bufitem = {
-"\ 'name': '',
-"\ 'context': '',
-"\ 'relpath': '',
-"\ 'fullpath': '',
-"\ 'bufnr': '',
-"\ 'is_modified': 0,
-"\ 'is_current': 0,
-"\ 'is_alternate': 0,
-"\ 'is_noname': 0,
-"\ }
-"
-"" TODO this should only be happening once per buffer lifetime
-"function! s:bufitem.new(binfo) abort
-"    let item = copy(self)
-"    call item._gen(a:binfo)
-"    return item
-"endfunction
-"
-"" renegrate minimal amount of data
-"" ie. context, and flags
-"" will be run everytime before item is shown
-"function! s:bufitem.upd(binfo) abort
-"    " update flags is_current, is_alternate, is_modified
-"    " update context
-"endfunction
-"
-"" regenerate all data
-"function! s:bufitem.regen() abort
-"    let binfo = getbufinfo(self.bufnr)
-"    call self._gen(binfo)
-"endfunction
-"
-"function! s:bufitem._gen(binfo) abort
-"    let self.bufnr = a:binfo.bufnr
-"    let self.is_current = (bufnr() == self.bufnr)
-"    let self.is_alternate = (bufnr('#') == self.bufnr)
-"    let self.is_modified = a:binfo.changed
-"
-"    let path = a:binfo.name
-"    if empty(path)
-"        let self.is_noname = 1
-"        let self.name = '#'.self.bufnr
-"   else
-"        let self.fullpath = path
-"        let self.relpath = fnamemodify(path, ':.')
-"        let self.name = fnamemodify(path, ':t')
-"        let self.context = fnamemodify(path, ':h')
-"    endif
-"
-"endfunction
-"
-"function! s:bufitem.tostring() abort
-"    return self.name . ' (' . self.context . ')'
-"endfunction
-"
-"" TODO cache this list with autocmds ?
-"function! s:bcache_load() abort
-"    let items = []
-"    for buf in getbufinfo({'buflisted':1})
-"        call add(items, s:bufitem.new(buf))
-"    endfor
-"    let s:buffercache = items
-"endfunction
 
 "--------------------------------------------------
 "   *** Expression Engine ***
@@ -211,13 +146,14 @@ function! s:Expression._match() abort
     let userinput = s:forwardslash(self.inputchars)
 
     while 1
-        let mode = self.hasflag_usealiases() ? s:enum_selectionmode.aliases
-             \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
-             \ : self.hasflag_usenoname() ? s:enum_selectionmode.noname
-             \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
-             \ : self.hasflag_altmatch() ? s:enum_selectionmode.filepath
-             \ : self.is_number() ? s:enum_selectionmode.bufnr
-             \ : s:enum_selectionmode.fzf
+        let mode =
+         \   self.hasflag_usealiases() ? s:enum_selectionmode.aliases
+         \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
+         \ : self.hasflag_usenoname()  ? s:enum_selectionmode.noname
+         \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
+         \ : self.hasflag_altmatch()   ? s:enum_selectionmode.filepath
+         \ : self.is_number()          ? s:enum_selectionmode.bufnr
+         \ : s:enum_selectionmode.fzf
 
         " TODO should we move the mode check here?
         if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
@@ -279,6 +215,7 @@ function! s:Expression._score(matches) abort
     if g:QuickBuf_resultscoring
         call s:score_resultsorder(a:matches, {})
         call s:score_analogouspath(a:matches, {'case_insensitive':1})
+        " call s:score_recency(a:matches)
         return 1
     endif
     return 0
@@ -645,7 +582,6 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
 
 endfunction
 
-
 " order as per enum_selectionmode
 let s:matchfor_func_refs = [
     \ function('s:matchfor_filepath'),
@@ -654,7 +590,7 @@ let s:matchfor_func_refs = [
     \ function('s:matchfor_buffernumber'),
     \ function('s:matchfor_nonamebufs'),
     \ function('s:matchfor_textinbufs'),
-    \ function('s:matchfor_fzfbuffers')
+    \ function('s:matchfor_fzfbuffers'),
     \ ]
 
 "--------------------------------------------------
@@ -713,29 +649,23 @@ function! s:score_resultsorder(matches, opts={}) abort
     return 1
 endfunction
 
-" todo recency modifier
-" ie. give more weight to files recently selected
-" than those that weren't when similar files
-" are returned
-"
-"   instead of a recent 'score' (ie. 1 + 1, etc) we could
-"   use a time_since_navigated score
-"   and this val is set on BufEnter not on change of this
-"   plugin.
-"   THEN we could also have a selection_score which marks
-"   a good job when user selects the file that was top of
-"   the time_since_navigated list, as positive reinforcement
-"
-" possible inspo: recency boost for obsidian ominisearch plugin
-"
-" todo:
-"   create autocmd BufEnter that creates or sets a var
-"     b:last_visisted to reltime()?
-"   then use this buffer to check recency
-
+" possible inspo: recency boost from obsidian ominisearch plugin
 function! s:score_recency(matches, opts={}) abort
+    let ctime = reltime()
+    let recents = {}
+    for i in range(len(a:matches))
+        let recents[i] = reltimestr(reltime(ctime,
+            \ getbufvar(a:matches[i].bufnr, "qb_lastvisited")
+            \ ))
+    endfor
+    " add five to the shortest? time
+    let a:matches[
+    \ recents->keys()->sort({
+    \   k1,k2 -> recents[k1] - recents[k2]
+    \ })[0]].score += 5
     return 1
 endfunction
+" todo: getbufinfo() > lastused
 
 "--------------------------------------------------
 "   *** Plugin Interaction ***
@@ -987,6 +917,14 @@ elseif g:QuickBuf_debug == 2
 endif
 
 "--------------------------------------------------
+"   *** Autocmds ***
+"--------------------------------------------------
+augroup quickbuf | au!
+    au BufEnter * let b:qb_lastvisited = reltime()
+    au SessionLoadPost * call s:alias_deserialise()
+augroup END
+
+"--------------------------------------------------
 "   *** Commands ***
 "--------------------------------------------------
 command! QBAliasList echo s:aliases
@@ -1022,8 +960,6 @@ endif
 exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '..
     \ g:QuickBuf_easycommandname..
     \ ' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif'
-
-call s:alias_deserialise()
 
 " testing only
 if g:QuickBuf_debug
