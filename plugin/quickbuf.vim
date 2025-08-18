@@ -920,7 +920,7 @@ endif
 "   *** Autocmds ***
 "--------------------------------------------------
 augroup quickbuf | au!
-    au BufEnter * let b:qb_lastvisited = reltime()
+    " au BufEnter * let b:qb_lastvisited = reltime()
     au SessionLoadPost * call s:alias_deserialise()
 augroup END
 
