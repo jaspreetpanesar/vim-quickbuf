@@ -17,16 +17,6 @@ let g:loaded_quickbuf = 1
 let s:c_mselvals = '1234abcdef'
 let s:c_mselmax = 10
 
-let s:enum_selectionmode = {
-    \ 'filepath' : 0,
-    \ 'aliases'  : 1,
-    \ 'arglist'  : 2,
-    \ 'bufnr'    : 3,
-    \ 'noname'   : 4,
-    \ 'textmatch': 5,
-    \ 'fzf'      : 6,
-    \ }
-
 " todo: w/ flag * get results from :find as well
 " and show confirmation w/ to open the new buf
 
@@ -53,6 +43,8 @@ call s:setup_config_value('debug', 0)
 "--------------------------------------------------
 let s:aliases = {}
 let s:buffercache = []
+let s:hasfzf = executable('fzf')
+let s:hasfuzzy = exists('*matchfuzzy')
 
 "--------------------------------------------------
 "   *** Expression Engine ***
@@ -146,14 +138,16 @@ function! s:Expression._match() abort
     let userinput = s:forwardslash(self.inputchars)
 
     while 1
-        let mode =
-         \   self.hasflag_usealiases() ? s:enum_selectionmode.aliases
-         \ : self.hasflag_usearglist() ? s:enum_selectionmode.arglist
-         \ : self.hasflag_usenoname()  ? s:enum_selectionmode.noname
-         \ : self.hasflag_searchtext() ? s:enum_selectionmode.textmatch
-         \ : self.hasflag_altmatch()   ? s:enum_selectionmode.filepath
-         \ : self.is_number()          ? s:enum_selectionmode.bufnr
-         \ : s:enum_selectionmode.fzf
+        let mode
+         \ = self.hasflag_usealiases()    ? s:enum_selectionmode.aliases
+         \ : self.hasflag_usearglist()    ? s:enum_selectionmode.arglist
+         \ : self.hasflag_usenoname()     ? s:enum_selectionmode.noname
+         \ : self.hasflag_searchtext()    ? s:enum_selectionmode.textmatch
+         \ : self.hasflag_altmatch()      ? s:enum_selectionmode.filepath
+         \ : self.is_number()             ? s:enum_selectionmode.bufnr
+         \ : s:hasfzf && self.is_quoted() ? s:enum_selectionmode.fzf
+         \ : s:hasfuzzy                   ? s:enum_selectionmode.fuzzy
+         \                                : s:enum_selectionmode.filepath
 
         " TODO should we move the mode check here?
         if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
@@ -351,6 +345,10 @@ endfunction
 
 function! s:Expression.hasflag_altmatch() abort
     return self._flagmatch('<>')
+endfunction
+
+function! s:Expression.is_quoted() abort
+    return self._flagmatch('".*"')
 endfunction
 
 "--------------------------------------------------
@@ -556,7 +554,9 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
 
     let trycount = 1
     while 1
-        let cmd = 'fzf -i -f "' . a:value . '"'
+        let cmd = 'fzf -i -f "' . escape(a:value, '"$') . '"'
+            " need to escape quotes and $ for fish shell
+            " todo should we do this in s:systemcall() ?
         let matches = s:systemcall(cmd, bufs)
         call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
 
@@ -582,6 +582,36 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
 
 endfunction
 
+function! s:matchfor_fuzzymatch(results, value, opts={}) abort
+    let inc = a:opts->get('includecurrentbuffer', 0)
+    let cur = bufnr()
+
+    let mts = getbufinfo(#{buflisted:1})
+          \ ->filter({_,x -> inc || x.bufnr != cur})
+    if !empty(a:value)
+        let mts = matchfuzzy(mts, a:value, #{key: 'name'})
+    endif
+
+    for bf in mts
+        call add(a:results,
+        \ s:new_match_item(bf.name, bf.bufnr,
+        \   fnamemodify(bf.name, ":~:."))
+        \ )
+    endfor
+
+endfunction
+
+let s:enum_selectionmode = {
+    \ 'filepath' : 0,
+    \ 'aliases'  : 1,
+    \ 'arglist'  : 2,
+    \ 'bufnr'    : 3,
+    \ 'noname'   : 4,
+    \ 'textmatch': 5,
+    \ 'fzf'      : 6,
+    \ 'fuzzy'    : 7,
+    \ }
+
 " order as per enum_selectionmode
 let s:matchfor_func_refs = [
     \ function('s:matchfor_filepath'),
@@ -591,6 +621,7 @@ let s:matchfor_func_refs = [
     \ function('s:matchfor_nonamebufs'),
     \ function('s:matchfor_textinbufs'),
     \ function('s:matchfor_fzfbuffers'),
+    \ function('s:matchfor_fuzzymatch'),
     \ ]
 
 "--------------------------------------------------
@@ -883,7 +914,7 @@ function! s:systemcall(cmd, items)
 
     call s:debug(cmd, tfile, matches)
 
-    " workaround for path style issues
+    " ignoring path style issues
     if len(matches) == 1 && matches[0] == '/usr/bin/bash: /s: No such file or directory'
         call s:show_error('could not resolve paths for environment')
         throw 'terminate'
