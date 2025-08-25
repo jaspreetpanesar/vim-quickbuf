@@ -34,6 +34,7 @@ call s:setup_config_value('switch_multiselect',  0)
 call s:setup_config_value('multiselection_keys', s:c_mselvals)
 call s:setup_config_value('easycommandname',     'QuickBuffer')
 call s:setup_config_value('grepsearch_command',  'rg -li %%SEARCH%%')
+call s:setup_config_value('fallback',  0) " todo use keys over index
 call s:setup_config_value('resultscoring', 1)
 call s:setup_config_value('alias_maps', 0)
 call s:setup_config_value('debug', 0)
@@ -45,6 +46,7 @@ let s:aliases = {}
 let s:buffercache = []
 let s:hasfzf = executable('fzf')
 let s:hasfuzzy = exists('*matchfuzzy')
+               \ && has('nvim-0.12')
 
 "--------------------------------------------------
 "   *** Expression Engine ***
@@ -147,7 +149,7 @@ function! s:Expression._match() abort
          \ : self.is_number()             ? s:enum_selectionmode.bufnr
          \ : s:hasfzf && self.is_quoted() ? s:enum_selectionmode.fzf
          \ : s:hasfuzzy                   ? s:enum_selectionmode.fuzzy
-         \                                : s:enum_selectionmode.filepath
+         \ : g:QuickBuf_fallback
 
         " TODO should we move the mode check here?
         if mode == self.cachectx_selectionmode && self._can_use_cache(mode)
