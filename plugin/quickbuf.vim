@@ -559,7 +559,7 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
         let cmd = 'fzf -i -f "' . escape(a:value, '"$') . '"'
             " need to escape quotes and $ for fish shell
             " todo should we do this in s:systemcall() ?
-        let matches = s:systemcall(cmd, bufs)
+        let matches = s:systemcall2(cmd, bufs)
         call s:debug(cmd, 'fzf-matches='.string(matches), 'fzf-buflist='.string(bufs))
 
         if !empty(matches)
@@ -585,6 +585,10 @@ function! s:matchfor_fzfbuffers(results, value, opts={}) abort
 endfunction
 
 function! s:matchfor_fuzzymatch(results, value, opts={}) abort
+    " todo: use matchfuzzypos, and then use the returned
+    " scores and if the delta between them is very large
+    " then only return the first/smallest delta items
+
     let inc = a:opts->get('includecurrentbuffer', 0)
     let cur = bufnr()
 
@@ -603,6 +607,7 @@ function! s:matchfor_fuzzymatch(results, value, opts={}) abort
 
 endfunction
 
+" fallback idx are here
 let s:enum_selectionmode = {
     \ 'filepath' : 0,
     \ 'aliases'  : 1,
@@ -926,6 +931,10 @@ function! s:systemcall(cmd, items)
     return matches
 
 endfunction
+
+fu! s:systemcall2(cmd, items) abort
+    return systemlist(a:cmd, join(a:items, "\n"))
+endfu
 
 if g:QuickBuf_debug == 0
     function! s:debug(...)
