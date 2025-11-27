@@ -790,7 +790,7 @@ function! s:alias_remove(name) abort
         call remove(s:aliases, a:name)
         call s:alias_serialise()
         try
-            exe 'unmap <m-'..a:name..'>'
+            exe 'unmap <leader>'..a:name
         catch /E31/ | endtry
         echo "alias removed '" . a:name . "'"
     else
@@ -834,9 +834,10 @@ endfunction
 function! s:alias_map(...) abort
     for name in a:000
         if name =~ '[1-9]'
-            exe 'nnoremap <silent> <m-'..name..
-            \   '> <cmd>QuickBuffer! #'..name..
-            \   '<cr>'
+            exe 'nnoremap <silent> <leader>'..name
+            \   ..' '
+            \   ..'<cmd>QuickBuffer! #'..name
+            \   ..'<cr>'
         endif
     endfor
 endfu
