@@ -778,11 +778,7 @@ function! s:alias_add(name, bufnr, silent=0) abort
     else
         let s:aliases[name] = a:bufnr
         call s:alias_serialise()
-        if name =~ '[1-9]'
-            exe 'nnoremap <silent> <m-'..name..
-            \   '> <cmd>QuickBuffer! #'..name..
-            \   '<cr>'
-        endif
+        call s:alias_map(name)
         if !a:silent
             echo "alias added '" . name . "'"
         endif
@@ -830,9 +826,20 @@ function! s:alias_deserialise() abort
         let bufnr = bufnr(data[1])
         if !empty(bufnr)
             let s:aliases[data[0]] = bufnr
+            call s:alias_map(data[0])
         endif
     endfor
 endfunction
+
+function! s:alias_map(...) abort
+    for name in a:000
+        if name =~ '[1-9]'
+            exe 'nnoremap <silent> <m-'..name..
+            \   '> <cmd>QuickBuffer! #'..name..
+            \   '<cr>'
+        endif
+    endfor
+endfu
 
 "--------------------------------------------------
 "   *** Helpers ***
