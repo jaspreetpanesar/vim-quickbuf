@@ -748,18 +748,22 @@ function! s:pub_list(expr) abort
 endfunction
 
 " *** Headless Mode ***
-function! s:pub_less(expr) abort
+function! s:pub_less(expr, noerror=0) abort
     call s:Expression.reset()
     call s:Expression.set_expr(a:expr)
+    let err = ''
     try
         let bnr = s:Expression.resolve()
         call s:goto_buffer(bnr, s:Expression.can_switchto())
     catch /no-matches-found/
-        call s:show_error('could not find any matches')
+        let err = 'could not find any matches'
     catch /no-match/
-        call s:show_error('invalid selection')
+        let err = 'invalid selection'
     catch /exit-requested/
     endtry
+    if !a:noerror && !empty(err)
+        call s:show_error(err)
+    endif
 endfunction
 
 "--------------------------------------------------
@@ -774,6 +778,11 @@ function! s:alias_add(name, bufnr, silent=0) abort
     else
         let s:aliases[name] = a:bufnr
         call s:alias_serialise()
+        if name =~ '[1-9]'
+            exe 'nnoremap <silent> <m-'..name..
+            \   '> <cmd>QuickBuffer! #'..name..
+            \   '<cr>'
+        endif
         if !a:silent
             echo "alias added '" . name . "'"
         endif
@@ -784,6 +793,9 @@ function! s:alias_remove(name) abort
     if s:aliases->has_key(a:name)
         call remove(s:aliases, a:name)
         call s:alias_serialise()
+        try
+            exe 'unmap <m-'..a:name..'>'
+        catch /E31/ | endtry
         echo "alias removed '" . a:name . "'"
     else
         call s:show_error('alias "' . a:name . '" does not exist')
@@ -999,9 +1011,9 @@ if g:QuickBuf_alias_maps
 
 endif
 
-exe 'command! -nargs=* -complete=customlist,s:CompleteFuncWrapper '..
+exe 'command! -bang -nargs=* -complete=customlist,s:CompleteFuncWrapper '..
     \ g:QuickBuf_easycommandname..
-    \ ' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>)<bar>endif'
+    \ ' if empty(<q-args>)<bar>call s:pub_prompt()<bar>else<bar>call s:pub_less(<q-args>, <bang>0)<bar>endif'
 
 " testing only
 if g:QuickBuf_debug
