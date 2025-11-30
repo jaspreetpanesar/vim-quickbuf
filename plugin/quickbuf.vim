@@ -836,7 +836,7 @@ function! s:alias_map(...) abort
         if name =~ '[1-9]'
             exe 'nnoremap <silent> <leader>'..name
             \   ..' '
-            \   ..'<cmd>QuickBuffer! #'..name
+            \   ..'<cmd>QuickBuffer! @#'..name
             \   ..'<cr>'
         endif
     endfor
