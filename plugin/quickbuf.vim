@@ -37,6 +37,7 @@ call s:setup_config_value('grepsearch_command',  'rg -li %%SEARCH%%')
 call s:setup_config_value('fallback',  0) " todo use keys over index
 call s:setup_config_value('resultscoring', 1)
 call s:setup_config_value('alias_maps', 0)
+call s:setup_config_value('alias_map_to_window', 0)
 call s:setup_config_value('debug', 0)
 
 "--------------------------------------------------
@@ -836,7 +837,8 @@ function! s:alias_map(...) abort
         if name =~ '[1-9]'
             exe 'nnoremap <silent> <leader>'..name
             \   ..' '
-            \   ..'<cmd>QuickBuffer! @#'..name
+            \   ..'<cmd>QuickBuffer! #'..name
+            \   ..(g:QuickBuf_alias_map_to_window ? '@' : '')
             \   ..'<cr>'
         endif
     endfor
