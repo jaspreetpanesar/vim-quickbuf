@@ -594,7 +594,7 @@ function! s:matchfor_fuzzymatch(results, value, opts={}) abort
     let cur = bufnr()
 
     let mts = getbufinfo(#{buflisted:1})
-          \ ->filter({_,x -> inc || x.bufnr != cur})
+          \ ->filter({_,x -> !empty(x.name) && (inc || x.bufnr != cur)})
     if !empty(a:value)
         let mts = matchfuzzy(mts, a:value, #{key: 'name'})
     endif
